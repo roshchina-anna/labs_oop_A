@@ -1,0 +1,1 @@
+SELECT function_id, x_value, y_value FROM points ORDER BY y_value ASC;

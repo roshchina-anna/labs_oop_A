@@ -27,16 +27,14 @@
   </component>
   <component name="DBNavigator.Project.DatabaseConsoleManager">
     <connection id="63120a17-c1cd-4d6a-ad6a-4ebf5d3e5a2b">
-      <console name="Connection" type="STANDARD" schema="public" session="Main"><![CDATA[DROP TABLE IF EXISTS functions CASCADE;]]></console>
+      <console name="Connection" type="STANDARD" schema="math_functions_db" session="Main" />
     </connection>
   </component>
   <component name="DBNavigator.Project.DatabaseEditorStateManager">
     <last-used-providers />
   </component>
   <component name="DBNavigator.Project.DatabaseFileManager">
-    <open-files>
-      <object connection-id="63120a17-c1cd-4d6a-ad6a-4ebf5d3e5a2b" object-ref="consoles/Connection" />
-    </open-files>
+    <open-files />
   </component>
   <component name="DBNavigator.Project.DatabaseSessionManager">
     <connection id="63120a17-c1cd-4d6a-ad6a-4ebf5d3e5a2b" />
@@ -48,9 +46,7 @@
     <retain-sticky-names value="false" />
   </component>
   <component name="DBNavigator.Project.FileConnectionMappingManager">
-    <mapping file-url="file://$PROJECT_DIR$/src/main/resources/scripts/create_functions_table.sql" connection-id="63120a17-c1cd-4d6a-ad6a-4ebf5d3e5a2b" session-id="MAIN" current-schema="public" />
-    <mapping file-url="file://$PROJECT_DIR$/src/main/resources/scripts/create_users_table.sql" connection-id="63120a17-c1cd-4d6a-ad6a-4ebf5d3e5a2b" session-id="MAIN" current-schema="public" />
-    <mapping file-url="file://$PROJECT_DIR$/src/main/resources/scripts/create_points_table.sql" connection-id="63120a17-c1cd-4d6a-ad6a-4ebf5d3e5a2b" session-id="MAIN" current-schema="public" />
+    <mapping file-url="file://$PROJECT_DIR$/src/main/resources/scripts/functions/create_functions_table.sql" connection-id="63120a17-c1cd-4d6a-ad6a-4ebf5d3e5a2b" session-id="MAIN" current-schema="math_functions_db" />
   </component>
   <component name="DBNavigator.Project.ObjectQuickFilterManager">
     <last-used-operator value="EQUAL" />

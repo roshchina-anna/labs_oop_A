@@ -1,0 +1,1 @@
+SELECT function_id, x_value, y_value FROM points WHERE function_id = ?;

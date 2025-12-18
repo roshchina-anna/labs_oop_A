@@ -1,0 +1,1 @@
+SELECT id, name, expression, user_id FROM functions;

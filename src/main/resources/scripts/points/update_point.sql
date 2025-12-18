@@ -1,0 +1,1 @@
+UPDATE points SET y_value = ? WHERE function_id = ? AND x_value = ?;

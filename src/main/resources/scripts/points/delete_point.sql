@@ -1,0 +1,1 @@
+DELETE FROM points WHERE function_id = ? AND x_value = ?;
