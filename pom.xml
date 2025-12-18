@@ -69,7 +69,11 @@
         </dependency>
     </dependencies>
     <build>
-        <finalName>labs_oop</finalName>
+        <!--
+          Using ROOT as the final WAR name ensures the application is deployed at the server root
+          (e.g., http://localhost:8080/api/...) without needing an extra context path.
+        -->
+        <finalName>ROOT</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
