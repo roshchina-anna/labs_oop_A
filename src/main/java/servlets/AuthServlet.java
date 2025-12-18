@@ -16,7 +16,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-@WebServlet("/api/users")
+@WebServlet("/api/auth/register")
 public class AuthServlet extends HttpServlet {
     private static final Logger logger = LoggerFactory.getLogger(AuthServlet.class);
     private UserRepository userRepository;
@@ -29,7 +29,7 @@ public class AuthServlet extends HttpServlet {
     }
 
     @Override
-    // (POST /api/users) - доступ общий (без авторизации)
+    // (POST /api/auth/register) - доступ общий (без авторизации)
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         logger.info("Получен запрос на регистрацию нового пользователя");
         // чтение тела

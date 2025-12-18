@@ -15,8 +15,6 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.List;
 
 @WebServlet("/api/users/*")
@@ -33,38 +31,7 @@ public class UserServlet extends HttpServlet {
     }
     // метод для аутентификации пользователя через basic auth
     private User authenticate(HttpServletRequest req) {
-        String authHeader = req.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Basic ")) {
-            logger.debug("Заголовок Authorization отсутствует или неверный");
-            return null;
-        }
-        try {
-            // чтение тела аутентификации: декорирование basic auth
-            String encoded = authHeader.substring(6);
-            String credentials = new String(Base64.getDecoder().decode(encoded), StandardCharsets.UTF_8);
-            String[] parts = credentials.split(":", 2);
-            if (parts.length != 2) {
-                logger.warn("Неверный формат credentials");
-                return null;
-            }
-            String username = parts[0];
-            String password = parts[1];
-            // поиск пользователя
-            User user = userRepository.findByUsername(username);
-            if (!BCrypt.checkpw(password, user.getPasswordHash())) {
-                logger.warn("Неверный пароль для: {}", username);
-                return null;
-            }
-            // хеширование пароля
-            if (!password.equals(user.getPasswordHash())) {
-                logger.warn("Неверный пароль для: {}", username);
-                return null;
-            }
-            return user;
-        } catch (Exception e) {
-            logger.error("Ошибка аутентификации", e);
-            return null;
-        }
+        return ServletHelper.authenticateUser(req, userRepository);
     }
     // формирование тела
     private void sendError(HttpServletResponse resp, int status, String message) throws IOException {

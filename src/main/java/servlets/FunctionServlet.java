@@ -204,6 +204,14 @@ public class FunctionServlet extends HttpServlet {
                 while ((line = reader.readLine()) != null) sb.append(line);
             }
             ObjectNode update = (ObjectNode) objectMapper.readTree(sb.toString());
+            Integer requestedUserId = null;
+            if (update.has("userId") && !update.get("userId").isNull()) {
+                if (!update.get("userId").canConvertToInt()) {
+                    sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid userId"); // 400
+                    return;
+                }
+                requestedUserId = update.get("userId").asInt();
+            }
             // обновление полей
             if (update.has("name") && !update.get("name").isNull()) {
                 existing.setName(update.get("name").asText());
@@ -211,9 +219,26 @@ public class FunctionServlet extends HttpServlet {
             if (update.has("expression") && !update.get("expression").isNull()) {
                 existing.setExpression(update.get("expression").asText());
             }
+            if (requestedUserId != null && !Objects.equals(existing.getUserId(), requestedUserId)) {
+                if (!"ADMIN".equals(authUser.getRole())) {
+                    sendError(resp, HttpServletResponse.SC_FORBIDDEN, "Only ADMIN can change userId"); // 403
+                    return;
+                }
+                User newOwner = userRepository.findById(requestedUserId);
+                if (newOwner == null) {
+                    sendError(resp, HttpServletResponse.SC_NOT_FOUND, "User not found"); // 404
+                    return;
+                }
+                existing.setUserId(requestedUserId);
+            }
             if (functionRepository.update(existing)) {
+                Function updated = functionRepository.findById(id);
+                if (updated == null) {
+                    sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to load updated function"); // 500
+                    return;
+                }
                 resp.setContentType("application/json");
-                resp.getWriter().print(objectMapper.writeValueAsString(existing));
+                resp.getWriter().print(objectMapper.writeValueAsString(updated));
                 logger.info("Обновлена функция {}", id);
             } else {
                 sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Update failed"); // 500
