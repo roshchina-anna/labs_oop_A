@@ -57,6 +57,14 @@ public class UserServlet extends HttpServlet {
             sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"); // 401
             return;
         }
+        // /api/users/me — текущий пользователь
+        if ("/me".equals(pathInfo)) {
+            authUser.setPasswordHash(null);
+            resp.setContentType("application/json");
+            resp.getWriter().print(objectMapper.writeValueAsString(authUser));
+            logger.info("Отправлены данные текущего пользователя");
+            return;
+        }
         // /api/users — получить список всех пользователей (доступ - ADMIN)
         if (pathInfo == null || "/".equals(pathInfo)) {
             if (!"ADMIN".equals(authUser.getRole())) {
