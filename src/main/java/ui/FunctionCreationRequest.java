@@ -5,7 +5,7 @@ public class FunctionCreationRequest {
     private String from;
     private String to;
     private String count;
-
+    private String factoryType;
     public String getFunctionName() {
         return functionName;
     }
@@ -36,5 +36,12 @@ public class FunctionCreationRequest {
 
     public void setCount(String count) {
         this.count = count;
+    }
+    public String getFactoryType() {
+        return factoryType;
+    }
+
+    public void setFactoryType(String factoryType) {
+        this.factoryType = factoryType;
     }
 }

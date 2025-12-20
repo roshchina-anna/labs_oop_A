@@ -5,6 +5,7 @@ import functions.MathFunction;
 import functions.Point;
 import functions.TabulatedFunction;
 import functions.factory.ArrayTabulatedFunctionFactory;
+import functions.factory.LinkedListTabulatedFunctionFactory;
 import functions.factory.TabulatedFunctionFactory;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -20,7 +21,6 @@ import java.util.Map;
 @WebServlet("/ui/tabulated/*")
 public class TabulatedFunctionServlet extends HttpServlet {
     private static final int MAX_POINTS = 500;
-    private final TabulatedFunctionFactory factory = new ArrayTabulatedFunctionFactory();
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final UiExceptionHandler exceptionHandler = new UiExceptionHandler();
     private final SimpleFunctionRegistry functionRegistry = new SimpleFunctionRegistry();
@@ -81,7 +81,7 @@ public class TabulatedFunctionServlet extends HttpServlet {
         double[] parsedX = parseValues(xValues, "x");
         double[] parsedY = parseValues(yValues, "y");
 
-        TabulatedFunction function = factory.create(parsedX, parsedY);
+        TabulatedFunction function = resolveFactory(request.getFactoryType()).create(parsedX, parsedY);
         respondWithFunction(resp, function, "Таблица точек");
     }
 
@@ -100,7 +100,7 @@ public class TabulatedFunctionServlet extends HttpServlet {
             throw new IllegalArgumentException("Слишком большое разбиение. Максимум точек: " + MAX_POINTS);
         }
 
-        TabulatedFunction function = factory.create(source, from, to, count);
+        TabulatedFunction function = resolveFactory(request.getFactoryType()).create(source, from, to, count);
         respondWithFunction(resp, function, request.getFunctionName());
     }
 
@@ -147,5 +147,14 @@ public class TabulatedFunctionServlet extends HttpServlet {
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
         resp.getWriter().write(objectMapper.writeValueAsString(response));
+    }
+    private TabulatedFunctionFactory resolveFactory(String factoryType) {
+        if (factoryType == null || factoryType.isBlank()) {
+            return new ArrayTabulatedFunctionFactory();
+        }
+        return switch (factoryType.toLowerCase()) {
+            case "list", "linked", "linkedlist", "linked-list" -> new LinkedListTabulatedFunctionFactory();
+            default -> new ArrayTabulatedFunctionFactory();
+        };
     }
 }

@@ -5,6 +5,7 @@ import java.util.List;
 public class ArrayCreationRequest {
     private List<String> xValues;
     private List<String> yValues;
+    private String factoryType;
 
     public List<String> getXValues() {
         return xValues;
@@ -20,5 +21,12 @@ public class ArrayCreationRequest {
 
     public void setYValues(List<String> yValues) {
         this.yValues = yValues;
+    }
+    public String getFactoryType() {
+        return factoryType;
+    }
+
+    public void setFactoryType(String factoryType) {
+        this.factoryType = factoryType;
     }
 }

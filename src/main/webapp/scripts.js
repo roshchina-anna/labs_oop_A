@@ -19,10 +19,20 @@ const submitFunctionButton = document.getElementById('submit-function');
 
 const resultContainer = document.getElementById('result-container');
 const errorMessage = document.getElementById('error-message');
+const factorySelect = document.getElementById('factory-select');
+const factoryLabel = document.getElementById('factory-label');
+const factoryChip = document.getElementById('factory-chip');
+const factoryBadges = document.querySelectorAll('.factory-name');
+let selectedFactory = localStorage.getItem('factoryType') || 'array';
 
 document.getElementById('open-array-modal').addEventListener('click', () => openModal(arrayModal));
 document.getElementById('open-function-modal').addEventListener('click', () => openModal(functionModal));
+document.getElementById('open-array-from-nav').addEventListener('click', () => openModal(arrayModal));
+document.getElementById('open-function-from-nav').addEventListener('click', () => openModal(functionModal));
 
+factorySelect.addEventListener('change', (event) => {
+    setFactory(event.target.value);
+});
 document.querySelectorAll('[data-close]').forEach(button => {
     button.addEventListener('click', closeAllModals);
 });
@@ -75,10 +85,11 @@ submitFunctionButton.addEventListener('click', async () => {
 
 async function sendRequest(url, body, modalToClose) {
     try {
+        const payload = {...body, factoryType: selectedFactory};
         const response = await fetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(body)
+            body: JSON.stringify(payload)
         });
         if (!response.ok) {
             const data = await response.json().catch(() => ({error: 'Ошибка обработки запроса'}));
@@ -127,6 +138,7 @@ function openModal(modal) {
     modals.forEach(m => m.classList.add('hidden'));
     modal.classList.remove('hidden');
     overlay.classList.remove('hidden');
+    syncFactoryBadges();
 }
 
 function closeModal(modal) {
@@ -193,5 +205,21 @@ async function loadFunctions() {
         showError('Не удалось загрузить список функций.');
     }
 }
+function setFactory(type) {
+    selectedFactory = type;
+    localStorage.setItem('factoryType', selectedFactory);
+    factorySelect.value = selectedFactory;
+    syncFactoryBadges();
+}
 
+function syncFactoryBadges() {
+    const name = selectedFactory === 'list'
+        ? 'LinkedListTabulatedFunctionFactory'
+        : 'ArrayTabulatedFunctionFactory';
+    factoryBadges.forEach(span => span.textContent = name);
+    factoryLabel.textContent = name;
+    factoryChip.textContent = selectedFactory === 'list' ? 'список' : 'массив';
+}
+
+setFactory(selectedFactory);
 loadFunctions();

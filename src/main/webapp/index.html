@@ -6,9 +6,17 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<nav class="top-nav">
+    <div class="brand">Tabulated Functions</div>
+    <div class="nav-links">
+        <a href="#navigation">Навигация</a>
+        <a href="#settings">Настройки</a>
+        <a href="#history">История</a>
+    </div>
+    <div class="factory-chip">Фабрика: <span id="factory-chip">массив</span></div>
+</nav>
 <header class="hero">
     <div>
-        <p class="eyebrow">Лабораторная работа</p>
         <h1>Создание табулированных функций</h1>
         <p class="lead">Введите точки вручную или выберите простую функцию, чтобы получить табулированное представление.</p>
     </div>
@@ -19,9 +27,52 @@
 </header>
 
 <main>
+    <section id="navigation" class="panel navigation">
+        <div>
+            <h2>Главная страница-навигация</h2>
+            <p class="muted">Выберите подходящий способ создания функции. Настройки фабрики автоматически применяются ко всем окнам.</p>
+        </div>
+        <div class="nav-grid">
+            <div class="nav-card">
+                <h3>Из таблицы точек</h3>
+                <p class="muted">Постройте таблицу x/y и создайте табулированную функцию в один клик.</p>
+                <button id="open-array-from-nav" class="secondary">Открыть окно ввода</button>
+            </div>
+            <div class="nav-card">
+                <h3>Из математической функции</h3>
+                <p class="muted">Выберите встроенную функцию и задайте интервал с количеством точек.</p>
+                <button id="open-function-from-nav" class="secondary">Открыть окно дискретизации</button>
+            </div>
+        </div>
+    </section>
+
+    <section id="settings" class="panel settings">
+        <div class="settings__header">
+            <div>
+                <h2>Настройки фабрики</h2>
+                <p class="muted">Укажите, какая фабрика должна использоваться при создании табулированных функций. Выбор применяется ко всем окнам и запросам.</p>
+            </div>
+            <div class="settings__status">
+                <span class="tag">Текущая фабрика</span>
+                <strong id="factory-label">ArrayTabulatedFunctionFactory</strong>
+            </div>
+        </div>
+        <div class="form-grid">
+            <label class="stacked">Способ хранения точек
+                <select id="factory-select">
+                    <option value="array">ArrayTabulatedFunctionFactory (массив)</option>
+                    <option value="list">LinkedListTabulatedFunctionFactory (список)</option>
+                </select>
+            </label>
+            <div class="info-box">
+                <p class="muted">Массив подойдёт для компактного хранения и быстрого доступа по индексу, связный список — для частых вставок и удалений.</p>
+                <p class="muted">Изменение настроек моментально обновляет все окна создания функций.</p>
+            </div>
+        </div>
+    </section>
     <section class="panel">
         <h2>Последние созданные функции</h2>
-        <p class="muted">После успешного создания функция появится здесь с основными характеристиками.</p>
+        <p id="history" class="muted">После успешного создания функция появится здесь с основными характеристиками.</p>
         <div id="result-container" class="result-grid"></div>
     </section>
 </main>
@@ -33,6 +84,7 @@
             <button class="ghost" data-close>Закрыть</button>
         </header>
         <div class="modal__body">
+            <div class="badge">Используется фабрика: <span class="factory-name"></span></div>
             <label class="stacked">Количество точек
                 <input id="array-size" type="text" inputmode="numeric" placeholder="например, 5">
             </label>
@@ -60,6 +112,7 @@
             <button class="ghost" data-close>Закрыть</button>
         </header>
         <div class="modal__body form-grid">
+            <div class="badge">Используется фабрика: <span class="factory-name"></span></div>
             <label class="stacked">Функция
                 <select id="function-select"></select>
             </label>
