@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ошибка приложения</title>
+    <style>
+        body {
+            font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 28px 32px;
+            max-width: 540px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+        }
+        h1 {
+            margin: 0 0 10px;
+            font-size: 26px;
+        }
+        p {
+            margin: 8px 0 0;
+            line-height: 1.6;
+        }
+        .hint {
+            margin-top: 18px;
+            padding: 12px 14px;
+            background: #0b1222;
+            border-radius: 10px;
+            border: 1px dashed #334155;
+            font-size: 14px;
+            color: #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1>Что-то пошло не так</h1>
+    <p>
+        Приложение вернуло внутреннюю ошибку. Попробуйте обновить страницу или
+        вернуться позже. Если проблема повторяется, посмотрите логи Tomcat и
+        убедитесь, что каталог временных файлов доступен для записи
+        (java.io.tmpdir или workDir контекста).
+    </p>
+    <div class="hint">
+        Совет: подобные ошибки часто возникают, если контейнер не может создать
+        временную папку для компиляции JSP. Статическая страница ошибок позволяет
+        продолжить работу без зависания на странице со стек-трейсом.
+    </div>
+</div>
+</body>
+</html>
