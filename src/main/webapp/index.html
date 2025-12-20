@@ -23,6 +23,8 @@
     <div class="actions">
         <button id="open-array-modal" class="primary">Создать из таблицы</button>
         <button id="open-function-modal" class="secondary">Создать из функции</button>
+        <button id="open-operations-modal" class="secondary">Поэлементные операции</button>
+        <button id="open-diff-modal" class="secondary">Дифференцирование</button>
     </div>
 </header>
 
@@ -42,6 +44,19 @@
                 <h3>Из математической функции</h3>
                 <p class="muted">Выберите встроенную функцию и задайте интервал с количеством точек.</p>
                 <button id="open-function-from-nav" class="secondary">Открыть окно дискретизации</button>
+            </div>
+            <div class="nav-card">
+                <h3>Операции и сохранение</h3>
+                <p class="muted">Сложение, вычитание, умножение и деление двух табулированных функций.</p>
+                <div class="pill-grid">
+                    <button id="open-operations-from-nav" class="secondary">Поэлементные операции</button>
+                    <button id="open-storage-modal" class="secondary">Сохранить/загрузить</button>
+                </div>
+            </div>
+            <div class="nav-card">
+                <h3>Дифференцирование</h3>
+                <p class="muted">Загрузите функцию или введите таблицу и получите производную в отдельной таблице.</p>
+                <button id="open-diff-from-nav" class="secondary">Открыть окно производной</button>
             </div>
         </div>
     </section>
@@ -128,6 +143,140 @@
         </div>
         <footer class="modal__footer">
             <button id="submit-function" class="primary">Создать</button>
+        </footer>
+    </div>
+</div>
+<div id="operations-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal__window wide">
+        <header class="modal__header">
+            <h3>Поэлементные операции</h3>
+            <button class="ghost" data-close>Закрыть</button>
+        </header>
+        <div class="modal__body">
+            <div class="badge">Доступные функции подтягиваются из истории и сохранений</div>
+            <div class="form-grid">
+                <label class="stacked">Первая функция
+                    <select id="operation-function-a"></select>
+                </label>
+                <label class="stacked">Вторая функция
+                    <select id="operation-function-b"></select>
+                </label>
+                <label class="stacked">Действие
+                    <select id="operation-type">
+                        <option value="add">Сложение (A + B)</option>
+                        <option value="subtract">Вычитание (A - B)</option>
+                        <option value="multiply">Умножение (A * B)</option>
+                        <option value="divide">Деление (A / B)</option>
+                    </select>
+                </label>
+                <label class="stacked">Размер таблицы для ручного ввода
+                    <input id="operation-size" type="text" inputmode="numeric" placeholder="например, 5">
+                </label>
+            </div>
+            <div class="pill-grid">
+                <button id="load-operation-tables" class="secondary">Загрузить выбранные функции</button>
+                <button id="build-operation-tables" class="secondary">Создать пустые таблицы</button>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <div class="label-row">Таблица A</div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead><tr><th>x</th><th>y</th></tr></thead>
+                            <tbody id="operation-table-a"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <div class="label-row">Таблица B</div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead><tr><th>x</th><th>y</th></tr></thead>
+                            <tbody id="operation-table-b"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <footer class="modal__footer">
+            <button id="run-operation" class="primary">Выполнить операцию</button>
+        </footer>
+    </div>
+</div>
+
+<div id="storage-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal__window">
+        <header class="modal__header">
+            <h3>Сохранение и загрузка</h3>
+            <button class="ghost" data-close>Закрыть</button>
+        </header>
+        <div class="modal__body">
+            <div class="form-grid">
+                <label class="stacked">Выберите функцию для сохранения
+                    <select id="save-function-select"></select>
+                </label>
+                <label class="stacked">Название сохранения
+                    <input id="save-name" type="text" placeholder="например, Эксперимент #1">
+                </label>
+                <button id="save-function" class="secondary">Сохранить в браузере</button>
+            </div>
+            <div class="divider"></div>
+            <div class="form-grid">
+                <label class="stacked">Загруженные сохранения
+                    <select id="load-function-select"></select>
+                </label>
+                <div class="pill-grid">
+                    <button id="load-function" class="secondary">Добавить в историю</button>
+                    <button id="clear-saved" class="ghost">Очистить сохранения</button>
+                </div>
+            </div>
+            <p class="muted">Сохранения хранятся локально в браузере и доступны после перезагрузки страницы.</p>
+        </div>
+    </div>
+</div>
+
+<div id="diff-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal__window wide">
+        <header class="modal__header">
+            <h3>Дифференцирование</h3>
+            <button class="ghost" data-close>Закрыть</button>
+        </header>
+        <div class="modal__body">
+            <div class="form-grid">
+                <label class="stacked">Источник таблицы
+                    <select id="diff-source-select"></select>
+                </label>
+                <label class="stacked">Размер таблицы для ручного ввода
+                    <input id="diff-size" type="text" inputmode="numeric" placeholder="например, 6">
+                </label>
+            </div>
+            <div class="pill-grid">
+                <button id="load-diff-table" class="secondary">Загрузить выбранную функцию</button>
+                <button id="build-diff-table" class="secondary">Создать пустую таблицу</button>
+            </div>
+            <div class="grid-2">
+                <div>
+                    <div class="label-row">Исходная таблица</div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead><tr><th>x</th><th>y</th></tr></thead>
+                            <tbody id="diff-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div>
+                    <div class="label-row">Результат (dy/dx)</div>
+                    <div class="table-wrapper">
+                        <table class="data-table">
+                            <thead><tr><th>x</th><th>y'</th></tr></thead>
+                            <tbody id="diff-result-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <footer class="modal__footer">
+            <button id="run-diff" class="primary">Получить производную</button>
         </footer>
     </div>
 </div>

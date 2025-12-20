@@ -160,6 +160,19 @@ main {
     gap: 10px;
 }
 
+.pill-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    align-items: start;
+}
+
 .muted {
     color: #94a3b8;
 }
@@ -276,6 +289,10 @@ main {
     box-shadow: 0 25px 70px rgba(0, 0, 0, 0.55);
 }
 
+.modal__window.wide {
+    width: min(960px, 94vw);
+}
+
 .modal__header, .modal__footer {
     display: flex;
     align-items: center;
@@ -294,6 +311,17 @@ main {
     display: grid;
     gap: 10px;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.label-row {
+    margin: 6px 0;
+    color: #cbd5e1;
+    font-weight: 600;
+}
+
+.divider {
+    border-top: 1px solid #1f2937;
+    margin: 14px 0;
 }
 
 .stacked {
