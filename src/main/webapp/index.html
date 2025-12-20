@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Tabulated Functions UI</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="hero">
+    <div>
+        <p class="eyebrow">Лабораторная работа</p>
+        <h1>Создание табулированных функций</h1>
+        <p class="lead">Введите точки вручную или выберите простую функцию, чтобы получить табулированное представление.</p>
+    </div>
+    <div class="actions">
+        <button id="open-array-modal" class="primary">Создать из таблицы</button>
+        <button id="open-function-modal" class="secondary">Создать из функции</button>
+    </div>
+</header>
+
+<main>
+    <section class="panel">
+        <h2>Последние созданные функции</h2>
+        <p class="muted">После успешного создания функция появится здесь с основными характеристиками.</p>
+        <div id="result-container" class="result-grid"></div>
+    </section>
+</main>
+
+<div id="array-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal__window">
+        <header class="modal__header">
+            <h3>Таблица значений</h3>
+            <button class="ghost" data-close>Закрыть</button>
+        </header>
+        <div class="modal__body">
+            <label class="stacked">Количество точек
+                <input id="array-size" type="text" inputmode="numeric" placeholder="например, 5">
+            </label>
+            <button id="build-table" class="secondary">Построить таблицу</button>
+            <p class="muted">Таблица появится ниже. При повторном нажатии существующие значения будут очищены.</p>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                    <tr><th>x</th><th>y</th></tr>
+                    </thead>
+                    <tbody id="array-table-body"></tbody>
+                </table>
+            </div>
+        </div>
+        <footer class="modal__footer">
+            <button id="submit-array" class="primary">Создать</button>
+        </footer>
+    </div>
+</div>
+
+<div id="function-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal__window">
+        <header class="modal__header">
+            <h3>Дискретизация функции</h3>
+            <button class="ghost" data-close>Закрыть</button>
+        </header>
+        <div class="modal__body form-grid">
+            <label class="stacked">Функция
+                <select id="function-select"></select>
+            </label>
+            <label class="stacked">Начало интервала
+                <input id="from-value" type="text" inputmode="decimal" placeholder="например, 0">
+            </label>
+            <label class="stacked">Конец интервала
+                <input id="to-value" type="text" inputmode="decimal" placeholder="например, 5">
+            </label>
+            <label class="stacked">Количество точек
+                <input id="function-count" type="text" inputmode="numeric" placeholder="например, 8">
+            </label>
+        </div>
+        <footer class="modal__footer">
+            <button id="submit-function" class="primary">Создать</button>
+        </footer>
+    </div>
+</div>
+
+<div id="error-modal" class="modal hidden" role="alertdialog" aria-modal="true">
+    <div class="modal__window">
+        <header class="modal__header">
+            <h3>Ошибка</h3>
+        </header>
+        <div class="modal__body">
+            <p id="error-message"></p>
+        </div>
+        <footer class="modal__footer">
+            <button class="primary" data-close>Понятно</button>
+        </footer>
+    </div>
+</div>
+
+<div id="overlay" class="overlay hidden"></div>
+
+<script src="scripts.js"></script>
+</body>
+</html>

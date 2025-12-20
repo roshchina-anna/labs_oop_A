@@ -33,24 +33,43 @@ public class AuthServlet extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         logger.info("Получен запрос на регистрацию нового пользователя");
         // чтение тела
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader reader = req.getReader()) {
-            String line;
-            while ((line = reader.readLine()) != null) sb.append(line);
-        }
         try {
-            JsonNode jsonNode = objectMapper.readTree(sb.toString());
+            String username;
+            String plainPassword;
 
-            // проверка обязательных полей
-            if (!jsonNode.has("username") || !jsonNode.has("password")) {
+            String contentType = req.getContentType();
+            if (contentType != null && contentType.startsWith("application/x-www-form-urlencoded")) {
+                username = req.getParameter("username");
+                plainPassword = req.getParameter("password");
+            } else {
+                // чтение тела
+                StringBuilder sb = new StringBuilder();
+                try (BufferedReader reader = req.getReader()) {
+                    String line;
+                    while ((line = reader.readLine()) != null) sb.append(line);
+                }
+
+                if (sb.length() == 0) {
+                    sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
+                            "Пустое тело запроса");
+                    return;
+                }
+
+                try {
+                    JsonNode jsonNode = objectMapper.readTree(sb.toString());
+                    username = jsonNode.has("username") ? jsonNode.get("username").asText() : null;
+                    plainPassword = jsonNode.has("password") ? jsonNode.get("password").asText() : null;
+                } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                    sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Неверный формат JSON");  // 400
+                    return;
+                }
+            }
+            if (username == null || plainPassword == null) {
                 sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
                         "Требуются поля: username и password"); // 400
                 return;
             }
-
-            String username = jsonNode.get("username").asText().trim();
-            String plainPassword = jsonNode.get("password").asText();
-
+            username = username.trim();
             if (username.isEmpty() || plainPassword.isEmpty()) {
                 sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
                         "username и password не могут быть пустыми"); // 400
@@ -89,8 +108,6 @@ public class AuthServlet extends HttpServlet {
                 writer.print(responseJson);
             }
             logger.info("пользователь создан");
-        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Неверный формат JSON");  // 400
         } catch (Exception e) {
             logger.error("Ошибка при регистрации", e);
             sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
