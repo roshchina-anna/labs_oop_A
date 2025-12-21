@@ -5,8 +5,8 @@ import functions.MathFunction;
 import functions.Point;
 import functions.TabulatedFunction;
 import functions.factory.ArrayTabulatedFunctionFactory;
-import functions.factory.LinkedListTabulatedFunctionFactory;
 import functions.factory.TabulatedFunctionFactory;
+import functions.factory.LinkedListTabulatedFunctionFactory;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
@@ -54,7 +54,7 @@ public class TabulatedFunctionServlet extends HttpServlet {
     }
 
     private void sendFunctions(HttpServletResponse resp) throws IOException {
-        Map<String, MathFunction> available = functionRegistry.getFunctions();
+        Map<String, MathFunction> available = functionRegistry.getFunctions(resp.getLocale());
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
         resp.getWriter().write(objectMapper.writeValueAsString(available.keySet()));
