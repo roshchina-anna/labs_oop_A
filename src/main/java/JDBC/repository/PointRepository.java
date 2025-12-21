@@ -128,6 +128,41 @@ public class PointRepository {
         }
     }
 
+    public void replacePoints(Integer functionId, List<Point> points) {
+        logger.info("Replacing points for function {} with {} entries", functionId, points.size());
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            boolean previousAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try (PreparedStatement deleteStmt = conn.prepareStatement(
+                    SqlHelper.loadSqlFromFile("scripts/points/delete_points_by_function_id.sql")
+            );
+                 PreparedStatement insertStmt = conn.prepareStatement(
+                         SqlHelper.loadSqlFromFile("scripts/points/insert_point.sql")
+                 )) {
+                deleteStmt.setInt(1, functionId);
+                deleteStmt.executeUpdate();
+
+                for (Point point : points) {
+                    insertStmt.setInt(1, functionId);
+                    insertStmt.setDouble(2, point.getXValue());
+                    insertStmt.setDouble(3, point.getYValue());
+                    insertStmt.addBatch();
+                }
+                insertStmt.executeBatch();
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                logger.error("Error when replacing points for function {}: {}", functionId, e.getMessage());
+                throw new RuntimeException("Failed to replace points for function", e);
+            } finally {
+                conn.setAutoCommit(previousAutoCommit);
+            }
+        } catch (SQLException e) {
+            logger.error("Error when replacing points for function {}: {}", functionId, e.getMessage());
+            throw new RuntimeException("Failed to replace points for function", e);
+        }
+    }
+
     // Поиск с сортировкой по X
     public List<Point> findAllSortedByX() {
         logger.info("Search for points sorted by x_value");

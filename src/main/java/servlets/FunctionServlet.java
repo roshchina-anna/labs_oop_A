@@ -2,11 +2,14 @@ package servlets;
 
 import DTO.Function;
 import DTO.User;
+import DTO.Point;
+import JDBC.repository.PointRepository;
 import JDBC.repository.FunctionRepository;
 import JDBC.repository.UserRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -26,12 +30,14 @@ public class FunctionServlet extends HttpServlet {
     private FunctionRepository functionRepository;
     private UserRepository userRepository;
     private ObjectMapper objectMapper;
+    private PointRepository pointRepository;
 
     @Override
     public void init() {
         this.functionRepository = new FunctionRepository();
         this.userRepository = new UserRepository();
         this.objectMapper = new ObjectMapper();
+        this.pointRepository = new PointRepository();
     }
     // формирование тела (в формате JSON)
     private void sendError(HttpServletResponse resp, int status, String message) throws IOException {
@@ -43,6 +49,14 @@ public class FunctionServlet extends HttpServlet {
         PrintWriter out = resp.getWriter();
         out.print(objectMapper.writeValueAsString(error));
         out.flush();
+    }
+    private String readBody(HttpServletRequest req) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = req.getReader()) {
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line);
+        }
+        return sb.toString();
     }
     // аутентификация
     private User authenticate(HttpServletRequest req) {
@@ -136,36 +150,37 @@ public class FunctionServlet extends HttpServlet {
             sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"); // 401
             return;
         }
-        // чтение тела запроса
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader reader = req.getReader()) {
-            String line;
-            while ((line = reader.readLine()) != null) sb.append(line);
-        }
+        String body = readBody(req);
         try {
-            Function f = objectMapper.readValue(sb.toString(), Function.class);
-            if (f.getName() == null || f.getName().trim().isEmpty()) {
-                sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Function name is required"); // 400
-                return;
-            }
-            if (f.getExpression() == null || f.getExpression().trim().isEmpty()) {
-                sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Expression is required"); // 400
-                return;
-            }
-            f.setUserId(authUser.getId()); // текущий пользователь
-            Integer id = functionRepository.insert(f);
-            if (id != null) {
-                f.setId(id);
-                resp.setStatus(HttpServletResponse.SC_CREATED); // 201
-                resp.setContentType("application/json");
-                resp.getWriter().print(objectMapper.writeValueAsString(f));
-                logger.info("Функция создана");
+        JsonNode root = objectMapper.readTree(body);
+        if (root.has("points")) {
+            createFunctionWithPoints(authUser, resp, root);
             } else {
-                sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Insert failed"); // 500
+                Function f = objectMapper.treeToValue(root, Function.class);
+                if (f.getName() == null || f.getName().trim().isEmpty()) {
+                    sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Function name is required"); // 400
+                    return;
+                }
+                if (f.getExpression() == null || f.getExpression().trim().isEmpty()) {
+                    sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Expression is required"); // 400
+                    return;
+                }
+                f.setUserId(authUser.getId()); // текущий пользователь
+                Integer id = functionRepository.insert(f);
+                if (id != null) {
+                    f.setId(id);
+                    resp.setStatus(HttpServletResponse.SC_CREATED); // 201
+                    resp.setContentType("application/json");
+                    resp.getWriter().print(objectMapper.writeValueAsString(f));
+                    logger.info("Функция создана");
+                } else {
+                    sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Insert failed"); // 500
+                }
             }
         } catch (JsonProcessingException e) {
-            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid JSON format"); // 400
-            logger.warn("Некорректный JSON при создании функции: {}", e.getMessage());
+            String message = e.getOriginalMessage() == null ? "Invalid JSON format" : e.getOriginalMessage();
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, message); // 400
+            logger.warn("Некорректный JSON при создании функции: {}", message);
         } catch (Exception e) {
             logger.error("Ошибка при создании функции", e);
             sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Internal server error"); // 500
@@ -197,13 +212,7 @@ public class FunctionServlet extends HttpServlet {
                 sendError(resp, HttpServletResponse.SC_FORBIDDEN, "Access denied"); // 403
                 return;
             }
-            // чтение тела запроса
-            StringBuilder sb = new StringBuilder();
-            try (BufferedReader reader = req.getReader()) {
-                String line;
-                while ((line = reader.readLine()) != null) sb.append(line);
-            }
-            ObjectNode update = (ObjectNode) objectMapper.readTree(sb.toString());
+            ObjectNode update = (ObjectNode) objectMapper.readTree(readBody(req));
             Integer requestedUserId = null;
             if (update.has("userId") && !update.get("userId").isNull()) {
                 if (!update.get("userId").canConvertToInt()) {
@@ -231,14 +240,36 @@ public class FunctionServlet extends HttpServlet {
                 }
                 existing.setUserId(requestedUserId);
             }
+            List<FunctionWithPointsRequest.PointPayload> providedPoints = null;
+            try {
+                if (update.has("points") && update.get("points").isArray()) {
+                    providedPoints = parsePointPayload(update.get("points"));
+                }
+            } catch (JsonProcessingException e) {
+                sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getOriginalMessage());
+                return;
+            }
             if (functionRepository.update(existing)) {
+                if (providedPoints != null) {
+                    pointRepository.replacePoints(id, toPointEntities(id, providedPoints));
+                }
                 Function updated = functionRepository.findById(id);
                 if (updated == null) {
                     sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to load updated function"); // 500
                     return;
                 }
                 resp.setContentType("application/json");
-                resp.getWriter().print(objectMapper.writeValueAsString(updated));
+                if (providedPoints != null) {
+                    resp.getWriter().print(objectMapper.writeValueAsString(new FunctionWithPointsResponse(
+                            updated.getId(),
+                            updated.getName(),
+                            updated.getExpression(),
+                            updated.getUserId(),
+                            providedPoints
+                    )));
+                } else {
+                    resp.getWriter().print(objectMapper.writeValueAsString(updated));
+                }
                 logger.info("Обновлена функция {}", id);
             } else {
                 sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Update failed"); // 500
@@ -283,5 +314,57 @@ public class FunctionServlet extends HttpServlet {
         } catch (NumberFormatException e) {
             sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Invalid function ID"); // 400
         }
+    }
+    private void createFunctionWithPoints(User authUser, HttpServletResponse resp, JsonNode root) throws IOException {
+        FunctionWithPointsRequest request = objectMapper.treeToValue(root, FunctionWithPointsRequest.class);
+        if (request.getName() == null || request.getName().trim().isEmpty()) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Function name is required");
+            return;
+        }
+        if (request.getExpression() == null || request.getExpression().trim().isEmpty()) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Expression is required");
+            return;
+        }
+        List<FunctionWithPointsRequest.PointPayload> points = parsePointPayload(root.get("points"));
+        Function function = new Function(request.getName(), request.getExpression(), authUser.getId());
+        Integer id = functionRepository.insert(function);
+        if (id == null) {
+            sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Insert failed");
+            return;
+        }
+        function.setId(id);
+        pointRepository.replacePoints(id, toPointEntities(id, points));
+        resp.setStatus(HttpServletResponse.SC_CREATED);
+        resp.setContentType("application/json");
+        resp.getWriter().print(objectMapper.writeValueAsString(
+            new FunctionWithPointsResponse(function.getId(), function.getName(), function.getExpression(), authUser.getId(), points)
+        ));
+        logger.info("Создана функция с {} точками", points.size());
+    }
+
+    private List<FunctionWithPointsRequest.PointPayload> parsePointPayload(JsonNode node) throws IOException {
+        if (node == null || !node.isArray()) {
+            throw new JsonProcessingException("Поле points должно быть массивом точек") { };
+        }
+        List<FunctionWithPointsRequest.PointPayload> points = new ArrayList<>();
+        for (JsonNode pointNode : node) {
+            FunctionWithPointsRequest.PointPayload payload = objectMapper.treeToValue(pointNode, FunctionWithPointsRequest.PointPayload.class);
+            if (payload.getXValue() == null || payload.getYValue() == null) {
+                throw new JsonProcessingException("Point must contain xValue and yValue") { };
+            }
+            points.add(payload);
+        }
+        if (points.size() < 2) {
+            throw new JsonProcessingException("Нужно минимум две точки для функции") { };
+        }
+        return points;
+    }
+
+    private List<Point> toPointEntities(Integer functionId, List<FunctionWithPointsRequest.PointPayload> payloads) {
+        List<Point> entities = new ArrayList<>();
+        for (FunctionWithPointsRequest.PointPayload payload : payloads) {
+            entities.add(new Point(functionId, payload.getXValue(), payload.getYValue()));
+        }
+        return entities;
     }
 }
