@@ -11,6 +11,7 @@ const errorModal = document.getElementById('error-modal');
 const modals = [arrayModal, functionModal, operationsModal, storageModal, diffModal, integralModal, errorModal];
 
 const arraySizeInput = document.getElementById('array-size');
+const arrayFunctionNameInput = document.getElementById('array-function-name');
 const buildTableButton = document.getElementById('build-table');
 const arrayTableBody = document.getElementById('array-table-body');
 const submitArrayButton = document.getElementById('submit-array');
@@ -37,6 +38,13 @@ const exportDownloadButton = document.getElementById('export-download');
 const importFormatSelect = document.getElementById('import-format');
 const importFileInput = document.getElementById('import-file');
 const importUploadButton = document.getElementById('import-upload');
+const editFunctionSelect = document.getElementById('edit-function-select');
+const editFunctionNameInput = document.getElementById('edit-function-name');
+const editFunctionBody = document.getElementById('edit-function-body');
+const loadEditFunctionButton = document.getElementById('load-edit-function');
+const addEditPointButton = document.getElementById('add-edit-point');
+const removeEditPointButton = document.getElementById('remove-edit-point');
+const saveEditFunctionButton = document.getElementById('save-edit-function');
 
 const diffSourceSelect = document.getElementById('diff-source-select');
 const diffSizeInput = document.getElementById('diff-size');
@@ -54,6 +62,7 @@ const runIntegralButton = document.getElementById('run-integral');
 const integralResult = document.getElementById('integral-result');
 
 const functionSelect = document.getElementById('function-select');
+const functionEntryNameInput = document.getElementById('function-entry-name');
 const fromInput = document.getElementById('from-value');
 const toInput = document.getElementById('to-value');
 const functionCountInput = document.getElementById('function-count');
@@ -118,7 +127,8 @@ logoutButton.addEventListener('click', () => {
     updateAuthUI();
 });
 loginSubmit.addEventListener('click', handleLogin);
-registerSubmit.addEventListener('click', handleRegister);buildTableButton.addEventListener('click', () => {
+registerSubmit.addEventListener('click', handleRegister);
+buildTableButton.addEventListener('click', () => {
     try {
             const size = parseSize(arraySizeInput.value);
             renderTableBody(arrayTableBody, size);
@@ -135,7 +145,11 @@ submitArrayButton.addEventListener('click', async () => {
     if (!xValues.length || !yValues.length) {
         return showError('Заполните значения x и y.');
     }
-    await sendRequest('/ui/tabulated/arrays', {xValues, yValues}, arrayModal);
+    await sendRequest('/ui/tabulated/arrays', {
+            xValues,
+            yValues,
+            name: arrayFunctionNameInput.value.trim()
+        }, arrayModal);
 });
 
 submitFunctionButton.addEventListener('click', async () => {
@@ -143,7 +157,8 @@ submitFunctionButton.addEventListener('click', async () => {
         functionName: functionSelect.value,
         from: fromInput.value.trim(),
         to: toInput.value.trim(),
-        count: functionCountInput.value.trim()
+        count: functionCountInput.value.trim(),
+        name: functionEntryNameInput.value.trim()
     };
     await sendRequest('/ui/tabulated/from-function', body, functionModal);
 });
@@ -331,6 +346,64 @@ clearSavedButton.addEventListener('click', async () => {
     }
 });
 
+loadEditFunctionButton?.addEventListener('click', () => {
+    const entry = savedFunctions.find(f => String(f.id) === editFunctionSelect.value);
+    if (!entry) {
+        return showError('Выберите сохранённую функцию для редактирования.');
+    }
+    editFunctionNameInput.value = entry.name;
+    renderTableBody(editFunctionBody, entry.points.length, entry.points);
+});
+
+addEditPointButton?.addEventListener('click', () => {
+    const nextIndex = editFunctionBody.children.length;
+    appendPointRow(editFunctionBody, nextIndex);
+});
+
+removeEditPointButton?.addEventListener('click', () => {
+    const rows = editFunctionBody.children;
+    if (rows.length <= 2) {
+        return showError('Нельзя удалять: нужно минимум две точки.');
+    }
+    editFunctionBody.removeChild(rows[rows.length - 1]);
+});
+
+saveEditFunctionButton?.addEventListener('click', async () => {
+    const selectedId = editFunctionSelect.value;
+    const entry = savedFunctions.find(f => String(f.id) === selectedId);
+    if (!entry) {
+        return showError('Выберите сохранённую функцию для сохранения изменений.');
+    }
+    const name = editFunctionNameInput.value.trim();
+    if (!name) {
+        return showError('Введите новое имя функции.');
+    }
+    if (editFunctionBody.children.length < 2) {
+        return showError('Нужно минимум две точки.');
+    }
+    try {
+        const points = buildPointsFromBody(editFunctionBody, 'редактирования');
+        const response = await authorizedFetch('/ui/storage/functions', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, points})
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({error: 'Не удалось сохранить изменения'}));
+            return showError(data.error || 'Не удалось сохранить изменения');
+        }
+        const saved = await response.json();
+        savedFunctions = savedFunctions.filter(f => f.id !== saved.id && f.name !== saved.name);
+        savedFunctions.push(saved);
+        refreshSavedDropdown();
+        refreshFunctionDropdowns();
+        editFunctionSelect.value = String(saved.id);
+        alert('Изменения сохранены.');
+    } catch (e) {
+        showError('Ошибка при сохранении изменений.');
+    }
+});
+
 // Дифференцирование
 buildDiffTableButton.addEventListener('click', () => {
     try {
@@ -415,6 +488,10 @@ async function sendRequest(url, body, modalToClose) {
             return showError(data.error || 'Неизвестная ошибка');
         }
         const data = await response.json();
+        const customName = body?.name?.trim();
+        if (customName) {
+        data.source = customName;
+        }
         addResultCard(data);
         closeModal(modalToClose);
     } catch (e) {
@@ -425,24 +502,27 @@ async function sendRequest(url, body, modalToClose) {
 function renderTableBody(tbody, size, points = []) {
     tbody.innerHTML = '';
     for (let i = 0; i < size; i++) {
-        const row = document.createElement('tr');
-        const xCell = document.createElement('td');
-        const yCell = document.createElement('td');
-
-        const xInput = document.createElement('input');
-        xInput.placeholder = `x${i + 1}`;
-        const yInput = document.createElement('input');
-        yInput.placeholder = `y${i + 1}`;
-        if (points[i]) {
-                    xInput.value = points[i].x;
-                    yInput.value = points[i].y;
-                }
-        xCell.appendChild(xInput);
-        yCell.appendChild(yInput);
-        row.appendChild(xCell);
-        row.appendChild(yCell);
-        tbody.appendChild(row);
+        appendPointRow(tbody, i, points[i]);
     }
+}
+function appendPointRow(tbody, index, point) {
+    const row = document.createElement('tr');
+    const xCell = document.createElement('td');
+    const yCell = document.createElement('td');
+
+    const xInput = document.createElement('input');
+    xInput.placeholder = `x${index + 1}`;
+    const yInput = document.createElement('input');
+    yInput.placeholder = `y${index + 1}`;
+    if (point) {
+        xInput.value = point.x;
+        yInput.value = point.y;
+    }
+    xCell.appendChild(xInput);
+    yCell.appendChild(yInput);
+    row.appendChild(xCell);
+    row.appendChild(yCell);
+    tbody.appendChild(row);
 }
 async function handleLogin() {
     const username = loginUsernameInput.value.trim();
@@ -760,6 +840,7 @@ function refreshFunctionDropdowns() {
 
 function refreshSavedDropdown() {
     loadFunctionSelect.innerHTML = '';
+    editFunctionSelect.innerHTML = '';
     if (!savedFunctions.length) {
         const opt = document.createElement('option');
         opt.textContent = 'Нет сохранений';
@@ -767,14 +848,20 @@ function refreshSavedDropdown() {
         opt.selected = true;
         loadFunctionSelect.appendChild(opt);
         loadFunctionSelect.disabled = true;
+        const editOpt = opt.cloneNode(true);
+        editFunctionSelect.appendChild(editOpt);
+        editFunctionSelect.disabled = true;
     } else {
         savedFunctions.forEach(entry => {
             const opt = document.createElement('option');
             opt.value = entry.id;
             opt.textContent = entry.name;
             loadFunctionSelect.appendChild(opt);
+            const editOpt = opt.cloneNode(true);
+            editFunctionSelect.appendChild(editOpt);
         });
         loadFunctionSelect.disabled = false;
+        editFunctionSelect.disabled = false;
     }
 }
 
