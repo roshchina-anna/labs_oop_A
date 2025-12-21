@@ -59,7 +59,6 @@
         <div class="settings__header">
             <div>
                 <h2>Настройки фабрики</h2>
-                <p class="muted">Укажите, какая фабрика должна использоваться при создании табулированных функций. Выбор применяется ко всем окнам и запросам.</p>
             </div>
             <div class="settings__status">
                 <span class="tag">Текущая фабрика</span>
@@ -89,12 +88,10 @@
             <button class="ghost" data-close>Закрыть</button>
         </header>
         <div class="modal__body">
-            <div class="badge">Используется фабрика: <span class="factory-name"></span></div>
             <label class="stacked">Количество точек
                 <input id="array-size" type="text" inputmode="numeric" placeholder="например, 5">
             </label>
             <button id="build-table" class="secondary">Построить таблицу</button>
-            <p class="muted">Таблица появится ниже. При повторном нажатии существующие значения будут очищены.</p>
             <div class="table-wrapper">
                 <table class="data-table">
                     <thead>
@@ -117,7 +114,6 @@
             <button class="ghost" data-close>Закрыть</button>
         </header>
         <div class="modal__body form-grid">
-            <div class="badge">Используется фабрика: <span class="factory-name"></span></div>
             <label class="stacked">Функция
                 <select id="function-select"></select>
             </label>
@@ -143,7 +139,6 @@
             <button class="ghost" data-close>Закрыть</button>
         </header>
         <div class="modal__body">
-            <div class="badge">Доступные функции подтягиваются из истории и сохранений</div>
             <div class="form-grid">
                 <label class="stacked">Первая функция
                     <select id="operation-function-a"></select>
@@ -220,7 +215,6 @@
                     <button id="clear-saved" class="ghost">Очистить сохранения</button>
                 </div>
             </div>
-            <p class="muted">Сохранения хранятся локально в браузере и доступны после перезагрузки страницы.</p>
         </div>
     </div>
 </div>
