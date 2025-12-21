@@ -2,9 +2,14 @@ package ui.swing;
 
 import functions.factory.TabulatedFunctionFactory;
 
-import javax.swing.*;
+import javax.swing.ButtonGroup;
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
 import javax.swing.border.EmptyBorder;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 
 public class SettingsDialog extends JDialog {
     private final AppContext context;

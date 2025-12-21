@@ -3,9 +3,14 @@ package ui.swing;
 import functions.MathFunction;
 import ui.SimpleFunctionRegistry;
 
-import javax.swing.*;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
-import java.awt.*;
+import java.awt.GridLayout;
 
 public class FunctionGeneratorDialog extends JDialog {
     private final SimpleFunctionRegistry registry = new SimpleFunctionRegistry();

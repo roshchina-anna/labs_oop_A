@@ -45,76 +45,76 @@
 </section>
 
 <div id="app-shell">
-    <header class="hero">
+<header class="hero">
+    <div>
+        <h1>Создание табулированных функций</h1>
+    </div>
+    <div class="actions">
+        <button id="open-array-modal" class="primary">Создать из таблицы</button>
+        <button id="open-function-modal" class="secondary">Создать из функции</button>
+        <button id="open-operations-modal" class="secondary">Поэлементные операции</button>
+        <button id="open-diff-modal" class="secondary">Дифференцирование</button>
+    </div>
+</header>
+
+<main>
+    <section id="navigation" class="panel navigation">
         <div>
-            <h1>Создание табулированных функций</h1>
+            <h2>Навигация</h2>
         </div>
-        <div class="actions">
-            <button id="open-array-modal" class="primary">Создать из таблицы</button>
-            <button id="open-function-modal" class="secondary">Создать из функции</button>
-            <button id="open-operations-modal" class="secondary">Поэлементные операции</button>
-            <button id="open-diff-modal" class="secondary">Дифференцирование</button>
+        <div class="nav-grid">
+            <div class="nav-card">
+                <h3>Из таблицы точек</h3>
+                <button id="open-array-from-nav" class="secondary">Открыть окно ввода</button>
+            </div>
+            <div class="nav-card">
+                <h3>Из математической функции</h3>
+                <button id="open-function-from-nav" class="secondary">Открыть окно дискретизации</button>
+            </div>
+            <div class="nav-card">
+                <h3>Операции и сохранение</h3>
+                <div class="pill-grid">
+                    <button id="open-operations-from-nav" class="secondary">Поэлементные операции</button>
+                    <button id="open-storage-modal" class="secondary">Сохранить/загрузить</button>
+                </div>
+            </div>
+            <div class="nav-card">
+                <h3>Дифференцирование</h3>
+                <button id="open-diff-from-nav" class="secondary">Открыть окно производной</button>
+            </div>
+            <div class="nav-card">
+                <h3>Определённый интеграл</h3>
+                <p class="muted">Параллельное вычисление площади под графиком</p>
+                <button id="open-integral-from-nav" class="secondary">Открыть окно интеграла</button>
+            </div>
         </div>
-    </header>
+    </section>
 
-    <main>
-        <section id="navigation" class="panel navigation">
+    <section id="settings" class="panel settings">
+        <div class="settings__header">
             <div>
-                <h2>Навигация</h2>
+                <h2>Настройки фабрики</h2>
             </div>
-            <div class="nav-grid">
-                <div class="nav-card">
-                    <h3>Из таблицы точек</h3>
-                    <button id="open-array-from-nav" class="secondary">Открыть окно ввода</button>
-                </div>
-                <div class="nav-card">
-                    <h3>Из математической функции</h3>
-                    <button id="open-function-from-nav" class="secondary">Открыть окно дискретизации</button>
-                </div>
-                <div class="nav-card">
-                    <h3>Операции и сохранение</h3>
-                    <div class="pill-grid">
-                        <button id="open-operations-from-nav" class="secondary">Поэлементные операции</button>
-                        <button id="open-storage-modal" class="secondary">Сохранить/загрузить</button>
-                    </div>
-                </div>
-                <div class="nav-card">
-                    <h3>Дифференцирование</h3>
-                    <button id="open-diff-from-nav" class="secondary">Открыть окно производной</button>
-                </div>
-                <div class="nav-card">
-                    <h3>Определённый интеграл</h3>
-                    <p class="muted">Параллельное вычисление площади под графиком</p>
-                    <button id="open-integral-from-nav" class="secondary">Открыть окно интеграла</button>
-                </div>
+            <div class="settings__status">
+                <span class="tag">Текущая фабрика</span>
+                <strong id="factory-label">ArrayTabulatedFunctionFactory</strong>
             </div>
-        </section>
-
-        <section id="settings" class="panel settings">
-            <div class="settings__header">
-                <div>
-                    <h2>Настройки фабрики</h2>
-                </div>
-                <div class="settings__status">
-                    <span class="tag">Текущая фабрика</span>
-                    <strong id="factory-label">ArrayTabulatedFunctionFactory</strong>
-                </div>
-            </div>
-            <div class="form-grid">
+        </div>
+        <div class="form-grid">
                 <select id="factory-select">
                     <option value="array">ArrayTabulatedFunctionFactory (массив)</option>
                     <option value="list">LinkedListTabulatedFunctionFactory (список)</option>
                 </select>
-                </label>
-                <div class="info-box">
-                </div>
+            </label>
+            <div class="info-box">
             </div>
-        </section>
-        <section class="panel">
-            <h2>Последние созданные функции</h2>
-            <div id="result-container" class="result-grid"></div>
-        </section>
-    </main>
+        </div>
+    </section>
+    <section class="panel">
+        <h2>Последние созданные функции</h2>
+        <div id="result-container" class="result-grid"></div>
+    </section>
+</main>
 </div>
 <div id="array-modal" class="modal hidden" role="dialog" aria-modal="true">
     <div class="modal__window">

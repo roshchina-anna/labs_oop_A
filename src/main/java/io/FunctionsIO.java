@@ -1,6 +1,7 @@
 package io;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import functions.Point;
@@ -180,14 +181,10 @@ public final class FunctionsIO {
         }
     }
 
-    private static final class TabulatedFunctionData {
-        private final List<PointData> points;
-
+    private static record TabulatedFunctionData(@JsonProperty("points") List<PointData> points) {
         @JsonCreator
-        private TabulatedFunctionData(@JsonProperty("points") List<PointData> points) {
-            this.points = points;
+        public TabulatedFunctionData {
         }
-
         public static TabulatedFunctionData from(TabulatedFunction function) {
             List<PointData> points = new ArrayList<>();
             for (Point point : function) {
@@ -195,24 +192,19 @@ public final class FunctionsIO {
             }
             return new TabulatedFunctionData(points);
         }
-
-        public List<PointData> getPoints() {
-            return points;
-        }
-
+        @JsonIgnore
         public double[] getXValues() {
             return points.stream().mapToDouble(PointData::x).toArray();
         }
-
+        @JsonIgnore
         public double[] getYValues() {
             return points.stream().mapToDouble(PointData::y).toArray();
         }
     }
-    private record PointData(double x, double y) {
+    private static record PointData(@JsonProperty("x") double x, @JsonProperty("y") double y) {
         @JsonCreator
-        private PointData(@JsonProperty("x") double x, @JsonProperty("y") double y) {
-            this.x = x;
-            this.y = y;
+        public PointData {
+
         }
     }
 }

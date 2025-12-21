@@ -5,14 +5,17 @@ import functions.MathFunction;
 import functions.Point;
 import functions.TabulatedFunction;
 import functions.factory.ArrayTabulatedFunctionFactory;
-import functions.factory.LinkedListTabulatedFunctionFactory;
 import functions.factory.TabulatedFunctionFactory;
+import functions.factory.LinkedListTabulatedFunctionFactory;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import operations.ParallelIntegralCalculator;
+import ui.IntegrationRequest;
+import ui.IntegralResponse;
+
 
 import java.io.IOException;
 import java.util.ArrayList;

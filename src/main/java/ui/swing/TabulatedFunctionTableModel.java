@@ -1,7 +1,6 @@
 package ui.swing;
 
 import functions.TabulatedFunction;
-
 import javax.swing.table.AbstractTableModel;
 
 public class TabulatedFunctionTableModel extends AbstractTableModel {
