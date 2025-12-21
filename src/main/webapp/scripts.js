@@ -1,5 +1,6 @@
 const MAX_POINTS = 500;
 const STORAGE_KEY = 'tabulated_saved_functions';
+const AUTH_TOKEN_KEY = 'authToken';
 const overlay = document.getElementById('overlay');
 const arrayModal = document.getElementById('array-modal');
 const operationsModal = document.getElementById('operations-modal');
@@ -65,10 +66,24 @@ const factorySelect = document.getElementById('factory-select');
 const factoryLabel = document.getElementById('factory-label');
 const factoryChip = document.getElementById('factory-chip');
 const factoryBadges = document.querySelectorAll('.factory-name');
+const authScreen = document.getElementById('auth-screen');
+const appShell = document.getElementById('app-shell');
+const userLabel = document.getElementById('user-label');
+const openLoginButton = document.getElementById('open-login');
+const openRegisterButton = document.getElementById('open-register');
+const logoutButton = document.getElementById('logout');
+const loginUsernameInput = document.getElementById('login-username');
+const loginPasswordInput = document.getElementById('login-password');
+const loginSubmit = document.getElementById('login-submit');
+const registerUsernameInput = document.getElementById('register-username');
+const registerPasswordInput = document.getElementById('register-password');
+const registerSubmit = document.getElementById('register-submit');
+
 let selectedFactory = localStorage.getItem('factoryType') || 'array';
 let savedFunctions = [];
 let entryCounter = 0;
 const functionLibrary = [];
+let currentUser = null;
 
 factorySelect.addEventListener('change', (event) => {
     setFactory(event.target.value);
@@ -94,7 +109,14 @@ factorySelect.addEventListener('change', (event) => {
 });
 factorySelect.addEventListener('change', (event) => setFactory(event.target.value));
 document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', closeAllModals));
-buildTableButton.addEventListener('click', () => {
+openLoginButton.addEventListener('click', () => showAuthPanels('login'));
+openRegisterButton.addEventListener('click', () => showAuthPanels('register'));
+logoutButton.addEventListener('click', () => {
+    clearAuth();
+    updateAuthUI();
+});
+loginSubmit.addEventListener('click', handleLogin);
+registerSubmit.addEventListener('click', handleRegister);buildTableButton.addEventListener('click', () => {
     try {
             const size = parseSize(arraySizeInput.value);
             renderTableBody(arrayTableBody, size);
@@ -228,7 +250,7 @@ exportDownloadButton.addEventListener('click', async () => {
         factoryType: selectedFactory
     };
     try {
-        const response = await fetch('/ui/storage/export', {
+        const response = await authorizedFetch('/ui/storage/export', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(body)
@@ -253,7 +275,7 @@ importUploadButton.addEventListener('click', async () => {
     const format = importFormatSelect.value;
     try {
         const content = await file.text();
-        const response = await fetch(`/ui/storage/import?format=${format}&factoryType=${selectedFactory}`, {
+        const response = await authorizedFetch(`/ui/storage/import?format=${format}&factoryType=${selectedFactory}`, {
             method: 'POST',
             headers: {'Content-Type': 'text/plain'},
             body: content
@@ -331,7 +353,7 @@ runIntegralButton.addEventListener('click', async () => {
         factoryType: selectedFactory
     };
     try {
-        const response = await fetch('/ui/tabulated/integral', {
+        const response = await authorizedFetch('/ui/tabulated/integral', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(body)
@@ -349,9 +371,13 @@ runIntegralButton.addEventListener('click', async () => {
     }
 });
 async function sendRequest(url, body, modalToClose) {
+    if (!currentUser) {
+            showAuthPanels('login');
+            return;
+        }
     try {
         const payload = {...body, factoryType: selectedFactory};
-        const response = await fetch(url, {
+        const response = await authorizedFetch(url, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
@@ -390,7 +416,131 @@ function renderTableBody(tbody, size, points = []) {
         tbody.appendChild(row);
     }
 }
+async function handleLogin() {
+    const username = loginUsernameInput.value.trim();
+    const password = loginPasswordInput.value;
+    if (!username || !password) {
+        return showError('Введите логин и пароль.');
+    }
+    const token = btoa(`${username}:${password}`);
+    try {
+        const response = await authorizedFetch('/api/users/me', {
+            headers: {Authorization: `Basic ${token}`}
+        });
+        if (!response.ok) {
+            return showError('Неверные данные для входа.');
+        }
+        currentUser = await response.json();
+        setAuthToken(token);
+        updateAuthUI();
+    } catch (e) {
+        showError('Не удалось выполнить вход.');
+    }
+}
 
+async function handleRegister() {
+    const username = registerUsernameInput.value.trim();
+    const password = registerPasswordInput.value;
+    if (!username || !password) {
+        return showError('Заполните логин и пароль.');
+    }
+    try {
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({username, password})
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({error: 'Не удалось зарегистрироваться.'}));
+            return showError(data.error || 'Не удалось зарегистрироваться.');
+        }
+        const token = btoa(`${username}:${password}`);
+        const meResponse = await authorizedFetch('/api/users/me', {
+            headers: {Authorization: `Basic ${token}`}
+        });
+        if (meResponse.ok) {
+            currentUser = await meResponse.json();
+            setAuthToken(token);
+            updateAuthUI();
+        }
+    } catch (e) {
+        showError('Ошибка при регистрации.');
+    }
+}
+
+function showAuthPanels(mode) {
+    if (mode === 'login') {
+        loginUsernameInput?.focus();
+    }
+    if (mode === 'register') {
+        registerUsernameInput?.focus();
+    }
+    authScreen.classList.remove('hidden');
+    appShell.classList.add('locked');
+}
+
+function getAuthToken() {
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+function setAuthToken(token) {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+function clearAuth() {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    currentUser = null;
+}
+
+async function hydrateAuth() {
+    const token = getAuthToken();
+    if (!token) {
+        updateAuthUI();
+        showAuthPanels('login');
+        return;
+    }
+    try {
+        const response = await authorizedFetch('/api/users/me', {
+            headers: {Authorization: `Basic ${token}`}
+        });
+        if (!response.ok) {
+            clearAuth();
+        } else {
+            currentUser = await response.json();
+        }
+    } catch (e) {
+        clearAuth();
+    }
+    updateAuthUI();
+}
+
+function updateAuthUI() {
+    const authenticated = !!currentUser;
+    userLabel.textContent = authenticated ? currentUser.username : 'Гость';
+    logoutButton.classList.toggle('hidden', !authenticated);
+    openLoginButton.classList.toggle('hidden', authenticated);
+    openRegisterButton.classList.toggle('hidden', authenticated);
+    authScreen.classList.toggle('hidden', authenticated);
+    appShell.classList.toggle('locked', !authenticated);
+    if (!authenticated) {
+        closeAllModals();
+    }
+}
+
+async function authorizedFetch(url, options = {}) {
+    const token = getAuthToken();
+    const headers = {...options.headers};
+    if (token) {
+        headers['Authorization'] = `Basic ${token}`;
+    }
+    const response = await fetch(url, {...options, headers});
+    if (response.status === 401) {
+        clearAuth();
+        updateAuthUI();
+        showAuthPanels('login');
+    }
+    return response;
+}
 function collectTableValuesFromBody(tbody) {
     const xValues = [];
     const yValues = [];
@@ -521,7 +671,7 @@ function registerFunction(source, points) {
 
 async function loadFunctions() {
     try {
-        const response = await fetch('/ui/tabulated/functions');
+        const response = await authorizedFetch('/ui/tabulated/functions');
         const names = await response.json();
         functionSelect.innerHTML = '';
         names.forEach(name => {
@@ -677,4 +827,8 @@ setFactory(selectedFactory);
 hydrateSaved();
 refreshSavedDropdown();
 refreshFunctionDropdowns();
-loadFunctions();
+hydrateAuth().then(() => {
+    if (currentUser) {
+        loadFunctions();
+    }
+});
