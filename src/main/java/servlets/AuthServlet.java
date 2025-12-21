@@ -24,20 +24,29 @@ public class AuthServlet extends HttpServlet {
 
     @Override
     public void init() {
+        ensureRepository();
+        this.objectMapper = new ObjectMapper();
+    }
+
+    private synchronized boolean ensureRepository() {
+        if (this.userRepository != null) {
+            return true;
+        }
         try {
             this.userRepository = new UserRepository();
+            return true;
         } catch (Exception e) {
             logger.error("Не удалось инициализировать UserRepository", e);
             this.userRepository = null;
+            return false;
         }
-        this.objectMapper = new ObjectMapper();
     }
 
     @Override
     // (POST /api/auth/register) - доступ общий (без авторизации)
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         logger.info("Получен запрос на регистрацию нового пользователя");
-        if (userRepository == null) {
+        if (!ensureRepository()) {
             sendError(resp, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     "Сервис временно недоступен. Повторите попытку позже.");
             return;
