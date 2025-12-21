@@ -24,7 +24,12 @@ public class AuthServlet extends HttpServlet {
 
     @Override
     public void init() {
-        this.userRepository = new UserRepository();
+        try {
+            this.userRepository = new UserRepository();
+        } catch (Exception e) {
+            logger.error("Не удалось инициализировать UserRepository", e);
+            this.userRepository = null;
+        }
         this.objectMapper = new ObjectMapper();
     }
 
@@ -32,6 +37,11 @@ public class AuthServlet extends HttpServlet {
     // (POST /api/auth/register) - доступ общий (без авторизации)
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         logger.info("Получен запрос на регистрацию нового пользователя");
+        if (userRepository == null) {
+            sendError(resp, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                    "Сервис временно недоступен. Повторите попытку позже.");
+            return;
+        }
         // чтение тела
         try {
             String username;
