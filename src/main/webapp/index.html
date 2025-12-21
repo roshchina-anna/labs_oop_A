@@ -4,435 +4,189 @@
     <meta charset="UTF-8">
     <title>Tabulated Functions UI</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 </head>
 <body>
-<nav class="top-nav">
-    <div class="brand">Tabulated Functions</div>
-    <div class="nav-links">
-        <a href="#navigation">Навигация</a>
-        <a href="#settings">Настройки</a>
-        <a href="#history">История</a>
-    </div>
-    <div class="factory-chip">Фабрика: <span id="factory-chip">массив</span></div>
-    <div class="auth-controls">
-        <span id="user-label" class="tag ghost-tag">Гость</span>
-        <button id="open-login" class="secondary">Войти</button>
-        <button id="open-register" class="ghost">Регистрация</button>
-        <button id="logout" class="ghost hidden">Выйти</button>
-    </div>
-</nav>
-<section id="auth-screen" class="auth-screen hidden">
-    <div class="auth-card">
-        <h2>Вход</h2>
-        <label class="stacked">Логин
-            <input id="login-username" type="text" autocomplete="username">
-        </label>
-        <label class="stacked">Пароль
-            <input id="login-password" type="password" autocomplete="current-password">
-        </label>
-        <button id="login-submit" class="primary">Войти</button>
-    </div>
-    <div class="auth-card">
-        <h2>Регистрация</h2>
-        <label class="stacked">Логин
-            <input id="register-username" type="text" autocomplete="username">
-        </label>
-        <label class="stacked">Пароль
-            <input id="register-password" type="password" autocomplete="new-password">
-        </label>
-        <button id="register-submit" class="secondary">Создать аккаунт</button>
-    </div>
-</section>
-
-<div id="app-shell">
+<div id="app" class="page">
+    <nav class="top-nav">
+        <div class="brand">Tabulated Functions</div>
+        <div class="nav-links">
+            <a href="#builder">Создание</a>
+            <a href="#operations">Интеграл</a>
+            <a href="#results">Результаты</a>
+        </div>
+        <div class="factory-chip">
+            Фабрика:
+            <select v-model="selectedFactory">
+                <option v-for="factory in factories" :key="factory.value" :value="factory.value">
+                    {{ factory.label }}
+                </option>
+            </select>
+        </div>
+    </nav>
     <header class="hero">
         <div>
+            <p class="eyebrow">Современный клиент на Vue 3</p>
             <h1>Создание табулированных функций</h1>
+            <p class="lead">Интерфейс переписан на Vue 3: единый источник состояния, простые формы, мгновенное обновление результатов и совместимость с Tomcat/Spring Boot.</p>
         </div>
         <div class="actions">
-            <button id="open-array-modal" class="primary">Создать из таблицы</button>
-            <button id="open-function-modal" class="secondary">Создать из функции</button>
-            <button id="open-operations-modal" class="secondary">Поэлементные операции</button>
-            <button id="open-diff-modal" class="secondary">Дифференцирование</button>
+            <button class="primary" @click="scrollTo('builder')">Создать функцию</button>
+            <button class="secondary" @click="scrollTo('results')">Открыть результаты</button>
         </div>
     </header>
 
     <main>
-        <section id="navigation" class="panel navigation">
-            <div>
-                <h2>Навигация</h2>
-            </div>
-            <div class="nav-grid">
-                <div class="nav-card">
-                    <h3>Создать из таблицы точек</h3>
-                    <button id="open-array-from-nav" class="secondary">Открыть окно ввода</button>
-                </div>
-                <div class="nav-card">
-                    <h3>Создать из математической функции</h3>
-                    <button id="open-function-from-nav" class="secondary">Открыть окно дискретизации</button>
-                </div>
-                <div class="nav-card">
-                    <h3>Операции и сохранение</h3>
-                    <div class="pill-grid">
-                        <button id="open-operations-from-nav" class="secondary">Поэлементные операции</button>
-                        <button id="open-storage-modal" class="secondary">Сохранить/загрузить</button>
+        <section id="builder" class="panel grid">
+            <div class="panel-section">
+                <div class="section-header">
+                    <div>
+                        <p class="eyebrow">Таблица значений</p>
+                        <h2>Создать из вручную введённых точек</h2>
                     </div>
+                    <div class="pill">{{ currentFactoryLabel }}</div>
                 </div>
-                <div class="nav-card">
-                    <h3>Дифференцирование</h3>
-                    <button id="open-diff-from-nav" class="secondary">Открыть окно производной</button>
+                <div class="form-grid">
+                    <label class="stacked">Имя функции
+                        <input v-model="arrayForm.name" type="text" placeholder="Например, Таблица #1">
+                    </label>
+                    <label class="stacked">Количество точек
+                        <input v-model.number="arrayForm.size" type="number" min="2" max="500" placeholder="Например, 5">
+                    </label>
                 </div>
-                <div class="nav-card">
-                    <h3>Интегрирование</h3>
-                    <button id="open-integral-from-nav" class="secondary">Открыть окно интеграла</button>
+                <div class="actions">
+                    <button class="secondary" @click="syncArraySize">Построить таблицу</button>
+                    <button class="ghost" @click="addArrayRow">Добавить строку</button>
+                    <button class="ghost" :disabled="arrayForm.points.length <= 2" @click="removeArrayRow">Удалить строку</button>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead><tr><th>x</th><th>y</th></tr></thead>
+                        <tbody>
+                        <tr v-for="(point, index) in arrayForm.points" :key="index">
+                            <td><input v-model="point.x" type="text" inputmode="decimal" placeholder="x{{ index + 1 }}"></td>
+                            <td><input v-model="point.y" type="text" inputmode="decimal" placeholder="y{{ index + 1 }}"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="actions">
+                    <button class="primary" @click="createFromTable">Создать из таблицы</button>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <div class="section-header">
+                    <div>
+                        <p class="eyebrow">Дискретизация</p>
+                        <h2>Создать из математической функции</h2>
+                    </div>
+                    <div class="pill ghost-pill" @click="loadFunctions">Обновить список</div>
+                </div>
+                <div class="form-grid">
+                    <label class="stacked">Имя функции
+                        <input v-model="functionForm.name" type="text" placeholder="f(x) на [0; 5]">
+                    </label>
+                    <label class="stacked">Источник
+                        <select v-model="functionForm.functionName">
+                            <option disabled value="">Выберите функцию</option>
+                            <option v-for="option in functionOptions" :key="option" :value="option">{{ option }}</option>
+                        </select>
+                    </label>
+                    <label class="stacked">Начало интервала
+                        <input v-model="functionForm.from" type="text" inputmode="decimal" placeholder="Например, 0">
+                    </label>
+                    <label class="stacked">Конец интервала
+                        <input v-model="functionForm.to" type="text" inputmode="decimal" placeholder="Например, 5">
+                    </label>
+                    <label class="stacked">Количество точек
+                        <input v-model="functionForm.count" type="number" min="2" max="500" placeholder="Например, 8">
+                    </label>
+                </div>
+                <div class="actions">
+                    <button class="primary" @click="createFromFunction">Создать из функции</button>
                 </div>
             </div>
         </section>
 
-        <section id="settings" class="panel settings">
-            <div class="settings__header">
+        <section id="operations" class="panel">
+            <div class="section-header">
                 <div>
-                    <h2>Настройки фабрики</h2>
+                    <p class="eyebrow">Интегрирование</p>
+                    <h2>Вычислить определённый интеграл</h2>
                 </div>
-                <div class="settings__status">
-                    <span class="tag">Текущая фабрика</span>
-                    <strong id="factory-label">ArrayTabulatedFunctionFactory</strong>
-                </div>
+                <div class="pill">{{ currentFactoryLabel }}</div>
             </div>
+            <p class="muted">Выберите ранее созданную функцию и задайте пределы интегрирования. Расчёт выполняется на сервере.</p>
             <div class="form-grid">
-                <select id="factory-select">
-                    <option value="array">ArrayTabulatedFunctionFactory (массив)</option>
-                    <option value="list">LinkedListTabulatedFunctionFactory (список)</option>
-                </select>
+                <label class="stacked">Функция
+                    <select v-model="integralForm.resultId">
+                        <option disabled value="">Выберите функцию из результатов</option>
+                        <option v-for="entry in results" :key="entry.id" :value="entry.id">{{ entry.title }}</option>
+                    </select>
                 </label>
-                <div class="info-box">
-                </div>
+                <label class="stacked">Верхний предел
+                    <input v-model="integralForm.to" type="text" inputmode="decimal" placeholder="Например, 10">
+                </label>
+                <label class="stacked">Количество потоков
+                    <input v-model="integralForm.threads" type="number" min="1" placeholder="Например, 4">
+                </label>
+            </div>
+            <div class="actions">
+                <button class="primary" @click="calculateIntegral" :disabled="!results.length">Вычислить интеграл</button>
+            </div>
+            <div v-if="integralResult" class="info-box">
+                <div class="pill">Интеграл</div>
+                <div class="result-value">{{ integralResult.label }} = {{ integralResult.value }}</div>
             </div>
         </section>
-        <section class="panel">
-            <h2>Последние созданные функции</h2>
-            <div id="result-container" class="result-grid"></div>
+
+        <section id="results" class="panel results">
+            <div class="section-header">
+                <div>
+                    <p class="eyebrow">Результаты</p>
+                    <h2>Последние построенные функции</h2>
+                </div>
+                <div class="tag" v-if="results.length">{{ results.length }} элементов</div>
+            </div>
+            <div v-if="!results.length" class="muted">Создайте функцию, чтобы увидеть её здесь.</div>
+            <div class="result-grid" v-else>
+                <article v-for="entry in results" :key="entry.id" class="result-card">
+                    <header class="result-card__header">
+                        <div>
+                            <p class="eyebrow">{{ entry.source }}</p>
+                            <h3>{{ entry.title }}</h3>
+                        </div>
+                        <div class="pill">{{ entry.points.length }} точек</div>
+                    </header>
+                    <table class="data-table compact">
+                        <thead><tr><th>x</th><th>y</th></tr></thead>
+                        <tbody>
+                        <tr v-for="(point, index) in entry.points" :key="index">
+                            <td>{{ point.x }}</td>
+                            <td>{{ point.y }}</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </article>
+            </div>
+        </section>
+        <section v-if="error" class="panel error-box">
+            <div class="section-header">
+                <h2>Ошибка</h2>
+                <button class="ghost" @click="error = null">Скрыть</button>
+            </div>
+            <p>{{ error }}</p>
+        </section>
+        <section v-if="message" class="panel success-box">
+            <div class="section-header">
+                <h2>Успешно</h2>
+                <button class="ghost" @click="message = null">Скрыть</button>
+            </div>
+            <p>{{ message }}</p>
         </section>
     </main>
 </div>
-<div id="array-modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal__window">
-        <header class="modal__header">
-            <h3>Таблица значений</h3>
-            <button class="ghost" data-close>Закрыть</button>
-        </header>
-        <div class="modal__body">
-            <label class="stacked">Имя функции
-                <input id="array-function-name" type="text" placeholder="например, Таблица #1">
-            </label>
-            <label class="stacked">Количество точек
-                <input id="array-size" type="text" inputmode="numeric" placeholder="например, 5">
-            </label>
-            <button id="build-table" class="secondary">Построить таблицу</button>
-            <div class="table-wrapper">
-                <table class="data-table">
-                    <thead>
-                    <tr><th>x</th><th>y</th></tr>
-                    </thead>
-                    <tbody id="array-table-body"></tbody>
-                </table>
-            </div>
-        </div>
-        <footer class="modal__footer">
-            <button id="submit-array" class="primary">Создать</button>
-        </footer>
-    </div>
-</div>
-
-<div id="function-modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal__window">
-        <header class="modal__header">
-            <h3>Дискретизация функции</h3>
-            <button class="ghost" data-close>Закрыть</button>
-        </header>
-        <div class="modal__body form-grid">
-            <label class="stacked">Имя функции
-                <input id="function-entry-name" type="text" placeholder="например, f(x) на [0; 5]">
-            </label>
-            <label class="stacked">Функция
-                <select id="function-select"></select>
-            </label>
-            <label class="stacked">Начало интервала
-                <input id="from-value" type="text" inputmode="decimal" placeholder="например, 0">
-            </label>
-            <label class="stacked">Конец интервала
-                <input id="to-value" type="text" inputmode="decimal" placeholder="например, 5">
-            </label>
-            <label class="stacked">Количество точек
-                <input id="function-count" type="text" inputmode="numeric" placeholder="например, 8">
-            </label>
-        </div>
-        <footer class="modal__footer">
-            <button id="submit-function" class="primary">Создать</button>
-        </footer>
-    </div>
-</div>
-<div id="operations-modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal__window wide">
-        <header class="modal__header">
-            <h3>Поэлементные операции</h3>
-            <button class="ghost" data-close>Закрыть</button>
-        </header>
-        <div class="modal__body">
-            <div class="form-grid">
-                <label class="stacked">Первая функция
-                    <select id="operation-function-a"></select>
-                </label>
-                <label class="stacked">Вторая функция
-                    <select id="operation-function-b"></select>
-                </label>
-                <label class="stacked">Действие
-                    <select id="operation-type">
-                        <option value="add">Сложение (A + B)</option>
-                        <option value="subtract">Вычитание (A - B)</option>
-                        <option value="multiply">Умножение (A * B)</option>
-                        <option value="divide">Деление (A / B)</option>
-                    </select>
-                </label>
-                <label class="stacked">Размер таблицы для ручного ввода
-                    <input id="operation-size" type="text" inputmode="numeric" placeholder="например, 5">
-                </label>
-            </div>
-            <div class="pill-grid">
-                <button id="load-operation-tables" class="secondary">Загрузить выбранные функции</button>
-                <button id="build-operation-tables" class="secondary">Создать пустые таблицы</button>
-            </div>
-            <div class="grid-2">
-                <div>
-                    <div class="label-row">Таблица A</div>
-                    <div class="table-wrapper">
-                        <table class="data-table">
-                            <thead><tr><th>x</th><th>y</th></tr></thead>
-                            <tbody id="operation-table-a"></tbody>
-                        </table>
-                    </div>
-                </div>
-                <div>
-                    <div class="label-row">Таблица B</div>
-                    <div class="table-wrapper">
-                        <table class="data-table">
-                            <thead><tr><th>x</th><th>y</th></tr></thead>
-                            <tbody id="operation-table-b"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <footer class="modal__footer">
-            <button id="run-operation" class="primary">Выполнить операцию</button>
-        </footer>
-    </div>
-</div>
-
-<div id="storage-modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal__window">
-        <header class="modal__header">
-            <h3>Сохранение и загрузка</h3>
-            <button class="ghost" data-close>Закрыть</button>
-        </header>
-        <div class="modal__body">
-            <div class="form-grid">
-                <label class="stacked">Выберите функцию для сохранения
-                    <select id="save-function-select"></select>
-                </label>
-                <label class="stacked">Название сохранения
-                    <input id="save-name" type="text" placeholder="например, Эксперимент #1">
-                </label>
-                <button id="save-function" class="secondary">Сохранить в браузере</button>
-            </div>
-            <div class="divider"></div>
-            <div class="form-grid">
-                <label class="stacked">Загруженные сохранения
-                    <select id="load-function-select"></select>
-                </label>
-                <div class="pill-grid">
-                    <button id="load-function" class="secondary">Добавить в историю</button>
-                    <button id="clear-saved" class="ghost">Очистить сохранения</button>
-                </div>
-            </div>
-            <div class="divider"></div>
-            <h4>Редактирование сохранений</h4>
-            <div class="form-grid">
-                <label class="stacked">Выберите сохранённую функцию
-                    <select id="edit-function-select"></select>
-                </label>
-                <label class="stacked">Новое имя функции
-                    <input id="edit-function-name" type="text" placeholder="Например, Обновлённая функция">
-                </label>
-            </div>
-            <div class="pill-grid">
-                <button id="load-edit-function" class="secondary">Загрузить в редактор</button>
-                <button id="add-edit-point" class="secondary">Добавить точку</button>
-                <button id="remove-edit-point" class="ghost">Удалить последнюю точку</button>
-            </div>
-            <div class="table-wrapper">
-                <table class="data-table">
-                    <thead><tr><th>x</th><th>y</th></tr></thead>
-                    <tbody id="edit-function-body"></tbody>
-                </table>
-            </div>
-            <div class="pill-grid">
-                <button id="save-edit-function" class="primary">Сохранить изменения</button>
-            </div>
-            <div class="divider"></div>
-            <h4>Функции из базы данных</h4>
-            <div class="form-grid">
-                <label class="stacked">Доступные функции
-                    <select id="db-function-select"></select>
-                </label>
-                <div class="pill-grid">
-                    <button id="refresh-db-functions" class="secondary">Обновить список</button>
-                    <button id="load-db-function" class="secondary">Загрузить в редактор</button>
-                </div>
-                <label class="stacked">Новое имя функции
-                    <input id="db-function-name" type="text" placeholder="Например, Сглаженная функция">
-                </label>
-            </div>
-            <div class="pill-grid">
-                <button id="add-db-point" class="secondary">Добавить точку</button>
-                <button id="remove-db-point" class="ghost">Удалить последнюю точку</button>
-            </div>
-            <div class="table-wrapper">
-                <table class="data-table">
-                    <thead><tr><th>x</th><th>y</th></tr></thead>
-                    <tbody id="db-function-body"></tbody>
-                </table>
-            </div>
-            <div class="pill-grid">
-                <button id="save-db-function" class="primary">Сохранить изменения в БД</button>
-                <span id="db-function-status" class="tag ghost-tag"></span>
-            </div>
-            <div class="divider"></div>
-            <h4>XML/JSON через API</h4>
-            <div class="form-grid">
-                <label class="stacked">Функция для выгрузки
-                    <select id="export-function-select"></select>
-                </label>
-                <label class="stacked">Имя файла
-                    <input id="export-name" type="text" placeholder="function">
-                </label>
-                <label class="stacked">Формат
-                    <select id="export-format">
-                        <option value="json">JSON</option>
-                        <option value="xml">XML</option>
-                    </select>
-                </label>
-                <button id="export-download" class="secondary">Скачать файл</button>
-            </div>
-            <div class="divider"></div>
-            <h4>Загрузка из файла</h4>
-            <div class="form-grid">
-                <label class="stacked">Формат файла
-                    <select id="import-format">
-                        <option value="json">JSON</option>
-                        <option value="xml">XML</option>
-                    </select>
-                </label>
-                <label class="stacked">Выберите файл
-                    <input id="import-file" type="file" accept=".json,.xml,text/xml,application/json">
-                </label>
-                <button id="import-upload" class="secondary">Импортировать</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="integral-modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal__window wide">
-        <header class="modal__header">
-            <h3>Интегрирование</h3>
-            <button class="ghost" data-close>Закрыть</button>
-        </header>
-        <div class="modal__body">
-            <div class="form-grid">
-                <label class="stacked">Функция для интегрирования
-                    <select id="integral-function-select"></select>
-                </label>
-                <label class="stacked">Нижний предел (a)
-                    <input id="integral-from" type="text" inputmode="decimal" placeholder="например, 0">
-                </label>
-                <label class="stacked">Верхний предел (b)
-                    <input id="integral-to" type="text" inputmode="decimal" placeholder="например, 5">
-                </label>
-                <label class="stacked">Число потоков
-                    <input id="integral-threads" type="text" inputmode="numeric" value="4">
-                </label>
-            </div>
-            <div class="pill-grid">
-                <button id="run-integral" class="primary">Вычислить интеграл</button>
-                <div id="integral-result" class="badge"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="diff-modal" class="modal hidden" role="dialog" aria-modal="true">
-    <div class="modal__window wide">
-        <header class="modal__header">
-            <h3>Дифференцирование</h3>
-            <button class="ghost" data-close>Закрыть</button>
-        </header>
-        <div class="modal__body">
-            <div class="form-grid">
-                <label class="stacked">Источник таблицы
-                    <select id="diff-source-select"></select>
-                </label>
-                <label class="stacked">Размер таблицы для ручного ввода
-                    <input id="diff-size" type="text" inputmode="numeric" placeholder="например, 6">
-                </label>
-            </div>
-            <div class="pill-grid">
-                <button id="load-diff-table" class="secondary">Загрузить выбранную функцию</button>
-                <button id="build-diff-table" class="secondary">Создать пустую таблицу</button>
-            </div>
-            <div class="grid-2">
-                <div>
-                    <div class="label-row">Исходная таблица</div>
-                    <div class="table-wrapper">
-                        <table class="data-table">
-                            <thead><tr><th>x</th><th>y</th></tr></thead>
-                            <tbody id="diff-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-                <div>
-                    <div class="label-row">Результат (dy/dx)</div>
-                    <div class="table-wrapper">
-                        <table class="data-table">
-                            <thead><tr><th>x</th><th>y'</th></tr></thead>
-                            <tbody id="diff-result-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <footer class="modal__footer">
-            <button id="run-diff" class="primary">Получить производную</button>
-        </footer>
-    </div>
-</div>
-
-<div id="error-modal" class="modal hidden" role="alertdialog" aria-modal="true">
-    <div class="modal__window">
-        <header class="modal__header">
-            <h3>Ошибка</h3>
-        </header>
-        <div class="modal__body">
-            <p id="error-message"></p>
-        </div>
-        <footer class="modal__footer">
-            <button class="primary" data-close>Понятно</button>
-        </footer>
-    </div>
-</div>
-
-<div id="overlay" class="overlay hidden"></div>
-
 <script src="scripts.js"></script>
 </body>
 </html>
