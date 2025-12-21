@@ -17,6 +17,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import servlets.ServletHelper;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -26,8 +27,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-
-import static org.postgresql.gss.MakeGSS.authenticate;
 
 @WebServlet("/ui/storage/*")
 public class TabulatedFunctionStorageServlet extends HttpServlet {
@@ -48,7 +47,6 @@ public class TabulatedFunctionStorageServlet extends HttpServlet {
         }
         resp.sendError(HttpServletResponse.SC_NOT_FOUND);
     }
-
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String path = req.getPathInfo();
@@ -88,7 +86,6 @@ public class TabulatedFunctionStorageServlet extends HttpServlet {
         }
         resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
     }
-
     private void handleExport(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         ExportRequest request = objectMapper.readValue(req.getInputStream(), ExportRequest.class);
         if (request.getPoints() == null || request.getPoints().size() < 2) {
@@ -134,13 +131,6 @@ public class TabulatedFunctionStorageServlet extends HttpServlet {
             };
         }
         respondWithFunction(resp, function, "Импорт " + format.toUpperCase());
-    }
-
-    private String normalizeFormat(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return "json";
-        }
-        return raw.trim().toLowerCase();
     }
 
     private void sendSavedFunctions(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -246,5 +236,19 @@ public class TabulatedFunctionStorageServlet extends HttpServlet {
             case "list", "linked", "linkedlist", "linked-list" -> new LinkedListTabulatedFunctionFactory();
             default -> new ArrayTabulatedFunctionFactory();
         };
+    }
+    private String normalizeFormat(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "json";
+        }
+        return raw.trim().toLowerCase();
+    }
+
+    private User authenticate(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        User user = ServletHelper.authenticateUser(req, userRepository);
+        if (user == null) {
+            resp.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+        }
+        return user;
     }
 }
