@@ -38,6 +38,15 @@ const exportDownloadButton = document.getElementById('export-download');
 const importFormatSelect = document.getElementById('import-format');
 const importFileInput = document.getElementById('import-file');
 const importUploadButton = document.getElementById('import-upload');
+const dbFunctionSelect = document.getElementById('db-function-select');
+const refreshDbFunctionsButton = document.getElementById('refresh-db-functions');
+const loadDbFunctionButton = document.getElementById('load-db-function');
+const dbFunctionNameInput = document.getElementById('db-function-name');
+const dbFunctionBody = document.getElementById('db-function-body');
+const addDbPointButton = document.getElementById('add-db-point');
+const removeDbPointButton = document.getElementById('remove-db-point');
+const saveDbFunctionButton = document.getElementById('save-db-function');
+const dbFunctionStatus = document.getElementById('db-function-status');
 const editFunctionSelect = document.getElementById('edit-function-select');
 const editFunctionNameInput = document.getElementById('edit-function-name');
 const editFunctionBody = document.getElementById('edit-function-body');
@@ -89,6 +98,10 @@ const registerSubmit = document.getElementById('register-submit');
 
 let selectedFactory = localStorage.getItem('factoryType') || 'array';
 let savedFunctions = [];
+let dbFunctions = [];
+let dbFunctionCache = [];
+let currentDbFunctionId = null;
+let currentDbPoints = [];
 let entryCounter = 0;
 const functionLibrary = [];
 let currentUser = null;
@@ -122,7 +135,12 @@ openRegisterButton.addEventListener('click', () => showAuthPanels('register'));
 logoutButton.addEventListener('click', () => {
     clearAuth();
     savedFunctions = [];
+    dbFunctions = [];
+    dbFunctionCache = [];
+    currentDbFunctionId = null;
+    currentDbPoints = [];
     refreshSavedDropdown();
+    refreshDbFunctionDropdown();
     refreshFunctionDropdowns();
     updateAuthUI();
 });
@@ -368,6 +386,17 @@ removeEditPointButton?.addEventListener('click', () => {
     editFunctionBody.removeChild(rows[rows.length - 1]);
 });
 
+refreshDbFunctionsButton?.addEventListener('click', () => loadDbFunctionsList(true));
+loadDbFunctionButton?.addEventListener('click', loadSelectedDbFunction);
+addDbPointButton?.addEventListener('click', () => appendPointRow(dbFunctionBody, dbFunctionBody.children.length));
+removeDbPointButton?.addEventListener('click', () => {
+    const rows = dbFunctionBody.children;
+    if (rows.length <= 2) {
+        return showError('Нужно минимум две точки.');
+    }
+    dbFunctionBody.removeChild(rows[rows.length - 1]);
+});
+saveDbFunctionButton?.addEventListener('click', persistDbFunctionChanges);
 saveEditFunctionButton?.addEventListener('click', async () => {
     const selectedId = editFunctionSelect.value;
     const entry = savedFunctions.find(f => String(f.id) === selectedId);
@@ -543,6 +572,7 @@ async function handleLogin() {
         updateAuthUI();
         await loadFunctions();
         await loadSavedFunctions();
+        await loadDbFunctionsList(true);
     } catch (e) {
         showError('Не удалось выполнить вход.');
     }
@@ -574,6 +604,7 @@ async function handleRegister() {
             updateAuthUI();
             await loadFunctions();
             await loadSavedFunctions();
+            await loadDbFunctionsList(true);
         }
     } catch (e) {
         showError('Ошибка при регистрации.');
@@ -925,13 +956,41 @@ function refreshSavedDropdown() {
     }
 }
 
+function refreshDbFunctionDropdown() {
+    if (!dbFunctionSelect) return;
+    dbFunctionSelect.innerHTML = '';
+    if (!dbFunctions.length) {
+        const opt = document.createElement('option');
+        opt.textContent = 'Нет функций в базе';
+        opt.disabled = true;
+        opt.selected = true;
+        dbFunctionSelect.appendChild(opt);
+        dbFunctionSelect.disabled = true;
+    } else {
+        dbFunctions.forEach(fn => {
+            const opt = document.createElement('option');
+            opt.value = fn.id;
+            opt.textContent = fn.name || `Функция #${fn.id}`;
+            dbFunctionSelect.appendChild(opt);
+        });
+        dbFunctionSelect.disabled = false;
+    }
+}
+
 function getAvailableSources() {
     const savedEntries = savedFunctions.map(item => ({
         id: String(item.id),
         source: `Сохранение: ${item.name}`,
         points: item.points
     }));
-    return [...functionLibrary, ...savedEntries];
+    const dbEntries = dbFunctionCache
+        .filter(item => Array.isArray(item.points) && item.points.length)
+        .map(item => ({
+            id: `db-${item.id}`,
+            source: `База: ${item.name || `Функция #${item.id}`}`,
+            points: item.points.map(normalizeDbPoint)
+        }));
+    return [...functionLibrary, ...savedEntries, ...dbEntries];
 }
 
 function resolveEntry(id) {
@@ -969,6 +1028,190 @@ function parseNumber(value, errorMessage) {
 
 function getOptionLabel(select) {
     return select?.selectedOptions?.[0]?.textContent || '';
+}
+
+function normalizeDbPoint(point) {
+    return {x: point.x ?? point.xValue, y: point.y ?? point.yValue};
+}
+
+function setDbStatus(message) {
+    if (!dbFunctionStatus) return;
+    dbFunctionStatus.textContent = message || '';
+}
+
+function resetDbEditor() {
+    currentDbFunctionId = null;
+    currentDbPoints = [];
+    dbFunctionNameInput.value = '';
+    dbFunctionBody.innerHTML = '';
+    setDbStatus('');
+}
+
+async function loadDbFunctionsList(forceReload = false) {
+    if (!currentUser) {
+        dbFunctions = [];
+        dbFunctionCache = [];
+        resetDbEditor();
+        refreshDbFunctionDropdown();
+        refreshFunctionDropdowns();
+        return;
+    }
+    if (!forceReload && dbFunctions.length) {
+        refreshDbFunctionDropdown();
+        return;
+    }
+    try {
+        const response = await authorizedFetch(`/api/functions/user/${currentUser.id}`);
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({error: 'Не удалось загрузить функции из базы'}));
+            showError(data.error || 'Не удалось загрузить функции из базы');
+            return;
+        }
+        const payload = await response.json();
+        dbFunctions = Array.isArray(payload) ? payload : [];
+        refreshDbFunctionDropdown();
+    } catch (e) {
+        dbFunctions = [];
+        refreshDbFunctionDropdown();
+        showError('Ошибка при загрузке функций из базы.');
+    }
+}
+
+async function loadSelectedDbFunction() {
+    if (!dbFunctionSelect || dbFunctionSelect.disabled) {
+        return showError('Нет функций для загрузки.');
+    }
+    const selectedId = dbFunctionSelect.value;
+    const meta = dbFunctions.find(item => String(item.id) === selectedId);
+    if (!meta) {
+        return showError('Выберите функцию из базы.');
+    }
+    try {
+        setDbStatus('Загрузка...');
+        const response = await authorizedFetch(`/api/points/function/${meta.id}`);
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({error: 'Не удалось загрузить точки функции'}));
+            setDbStatus('');
+            return showError(data.error || 'Не удалось загрузить точки функции');
+        }
+        const pointsPayload = await response.json();
+        const points = Array.isArray(pointsPayload) ? pointsPayload.map(normalizeDbPoint) : [];
+        currentDbFunctionId = meta.id;
+        currentDbPoints = points;
+        dbFunctionNameInput.value = meta.name || '';
+        renderTableBody(dbFunctionBody, Math.max(points.length, 2), points);
+        const existing = dbFunctionCache.find(item => item.id === meta.id);
+        if (existing) {
+            existing.name = meta.name;
+            existing.points = points;
+        } else {
+            dbFunctionCache.push({id: meta.id, name: meta.name, points});
+        }
+        refreshFunctionDropdowns();
+        setDbStatus('Функция загружена.');
+    } catch (e) {
+        setDbStatus('');
+        showError('Ошибка при загрузке функции из базы.');
+    }
+}
+
+async function persistDbFunctionChanges() {
+    if (!currentDbFunctionId) {
+        return showError('Сначала загрузите функцию из базы.');
+    }
+    const name = dbFunctionNameInput.value.trim();
+    if (!name) {
+        return showError('Введите новое имя функции.');
+    }
+    if (dbFunctionBody.children.length < 2) {
+        return showError('Для сохранения нужно минимум две точки.');
+    }
+    let points;
+    try {
+        points = buildPointsFromBody(dbFunctionBody, 'редактирования БД');
+    } catch (e) {
+        return showError(e.message);
+    }
+    const duplicates = new Set();
+    for (const point of points) {
+        if (duplicates.has(point.x)) {
+            return showError('Значения x должны быть уникальными.');
+        }
+        duplicates.add(point.x);
+    }
+    setDbStatus('Сохранение...');
+    const meta = dbFunctions.find(item => item.id === currentDbFunctionId);
+    try {
+        if (meta && meta.name !== name) {
+            const response = await authorizedFetch(`/api/functions/${currentDbFunctionId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name})
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({error: 'Не удалось обновить имя функции'}));
+                setDbStatus('');
+                return showError(data.error || 'Не удалось обновить имя функции');
+            }
+            const updated = await response.json();
+            meta.name = updated.name;
+        }
+        const existingMap = new Map(currentDbPoints.map(point => [point.x, point.y]));
+        const newMap = new Map(points.map(point => [point.x, point.y]));
+
+        for (const [x] of existingMap.entries()) {
+            if (!newMap.has(x)) {
+                const response = await authorizedFetch(`/api/points/function/${currentDbFunctionId}/x/${x}`, {method: 'DELETE'});
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({error: `Не удалось удалить точку x=${x}`}));
+                    setDbStatus('');
+                    return showError(data.error || `Не удалось удалить точку x=${x}`);
+                }
+            }
+        }
+        for (const [x, y] of newMap.entries()) {
+            if (!existingMap.has(x)) {
+                const response = await authorizedFetch('/api/points', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({functionId: currentDbFunctionId, xValue: x, yValue: y})
+                });
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({error: `Не удалось создать точку x=${x}`}));
+                    setDbStatus('');
+                    return showError(data.error || `Не удалось создать точку x=${x}`);
+                }
+            } else if (existingMap.get(x) !== y) {
+                const response = await authorizedFetch(`/api/points/function/${currentDbFunctionId}/x/${x}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({yValue: y})
+                });
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({error: `Не удалось обновить точку x=${x}`}));
+                    setDbStatus('');
+                    return showError(data.error || `Не удалось обновить точку x=${x}`);
+                }
+            }
+        }
+        currentDbPoints = points;
+        const cached = dbFunctionCache.find(item => item.id === currentDbFunctionId);
+        if (cached) {
+            cached.name = name;
+            cached.points = points;
+        } else {
+            dbFunctionCache.push({id: currentDbFunctionId, name, points});
+        }
+        if (meta) {
+            meta.name = name;
+        }
+        refreshDbFunctionDropdown();
+        refreshFunctionDropdowns();
+        setDbStatus('Изменения сохранены.');
+    } catch (e) {
+        setDbStatus('');
+        showError('Не удалось сохранить изменения в БД.');
+    }
 }
 
 async function loadSavedFunctions() {
@@ -1017,4 +1260,5 @@ hydrateAuth().then(() => {
         loadFunctions();
     }
     loadSavedFunctions();
+    loadDbFunctionsList();
 });

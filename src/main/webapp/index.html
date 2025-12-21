@@ -280,6 +280,34 @@
                 <button id="save-edit-function" class="primary">Сохранить изменения</button>
             </div>
             <div class="divider"></div>
+            <h4>Функции из базы данных</h4>
+            <div class="form-grid">
+                <label class="stacked">Доступные функции
+                    <select id="db-function-select"></select>
+                </label>
+                <div class="pill-grid">
+                    <button id="refresh-db-functions" class="secondary">Обновить список</button>
+                    <button id="load-db-function" class="secondary">Загрузить в редактор</button>
+                </div>
+                <label class="stacked">Новое имя функции
+                    <input id="db-function-name" type="text" placeholder="Например, Сглаженная функция">
+                </label>
+            </div>
+            <div class="pill-grid">
+                <button id="add-db-point" class="secondary">Добавить точку</button>
+                <button id="remove-db-point" class="ghost">Удалить последнюю точку</button>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead><tr><th>x</th><th>y</th></tr></thead>
+                    <tbody id="db-function-body"></tbody>
+                </table>
+            </div>
+            <div class="pill-grid">
+                <button id="save-db-function" class="primary">Сохранить изменения в БД</button>
+                <span id="db-function-status" class="tag ghost-tag"></span>
+            </div>
+            <div class="divider"></div>
             <h4>XML/JSON через API</h4>
             <div class="form-grid">
                 <label class="stacked">Функция для выгрузки
