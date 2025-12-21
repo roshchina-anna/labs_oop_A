@@ -235,6 +235,20 @@ main {
     gap: 8px;
 }
 
+.chart-container {
+    background: #0b1220;
+    border: 1px solid #1f2937;
+    border-radius: 10px;
+    padding: 8px;
+}
+
+.chart-canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+}
+
 .tag {
     display: inline-block;
     padding: 4px 8px;

@@ -689,6 +689,63 @@ function renderResultTable(tbody, points) {
     });
 }
 
+function buildFunctionPlot(points) {
+    const container = document.createElement('div');
+    container.className = 'chart-container';
+    const canvas = document.createElement('canvas');
+    canvas.width = 360;
+    canvas.height = 180;
+    canvas.className = 'chart-canvas';
+    container.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+
+    const padding = 24;
+    const width = canvas.width;
+    const height = canvas.height;
+    const minX = Math.min(...points.map(p => p.x));
+    const maxX = Math.max(...points.map(p => p.x));
+    const minY = Math.min(...points.map(p => p.y));
+    const maxY = Math.max(...points.map(p => p.y));
+
+    const xSpan = maxX - minX || 1;
+    const ySpan = maxY - minY || 1;
+
+    const projectX = x => padding + ((x - minX) / xSpan) * (width - padding * 2);
+    const projectY = y => height - padding - ((y - minY) / ySpan) * (height - padding * 2);
+
+    ctx.fillStyle = '#0b1220';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(padding, padding, width - padding * 2, height - padding * 2);
+
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    points.forEach((p, idx) => {
+        const x = projectX(p.x);
+        const y = projectY(p.y);
+        if (idx === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    });
+    ctx.stroke();
+
+    ctx.fillStyle = '#f97316';
+    points.forEach(point => {
+        const x = projectX(point.x);
+        const y = projectY(point.y);
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+    });
+
+    return container;
+}
+
 function calculateDerivative(points) {
     const derivatives = [];
     for (let i = 0; i < points.length; i++) {
@@ -750,6 +807,8 @@ function addResultCard(data) {
             const maxX = Math.max(...xs);
             meta.innerHTML = `Точек: ${points.length}<br>Интервал: [${minX.toFixed(2)}; ${maxX.toFixed(2)}]`;
 
+const chart = buildFunctionPlot(points);
+
             const sampleList = document.createElement('div');
             sampleList.className = 'meta';
             const previewCount = Math.min(points.length, 5);
@@ -759,6 +818,7 @@ function addResultCard(data) {
             sampleList.innerHTML = `Первые значения:<br>${lines}`;
 
             card.appendChild(meta);
+            card.appendChild(chart);
             card.appendChild(sampleList);
         }
 
