@@ -5,13 +5,14 @@ import functions.MathFunction;
 import functions.Point;
 import functions.TabulatedFunction;
 import functions.factory.ArrayTabulatedFunctionFactory;
-import functions.factory.TabulatedFunctionFactory;
 import functions.factory.LinkedListTabulatedFunctionFactory;
+import functions.factory.TabulatedFunctionFactory;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import operations.ParallelIntegralCalculator;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -46,6 +47,7 @@ public class TabulatedFunctionServlet extends HttpServlet {
             switch (path) {
                 case "/arrays" -> handleArrayCreation(req, resp);
                 case "/from-function" -> handleFunctionCreation(req, resp);
+                case "/integral" -> handleIntegral(req, resp);
                 default -> resp.sendError(HttpServletResponse.SC_NOT_FOUND);
             }
         } catch (Exception e) {
@@ -137,6 +139,21 @@ public class TabulatedFunctionServlet extends HttpServlet {
         return parsed;
     }
 
+    private int parsePositiveInt(String raw, String errorMessage) {
+        if (raw == null || raw.isBlank()) {
+            throw new IllegalArgumentException(errorMessage);
+        }
+        try {
+            int parsed = Integer.parseInt(raw);
+            if (parsed < 1) {
+                throw new IllegalArgumentException(errorMessage);
+            }
+            return parsed;
+        } catch (NumberFormatException e) {
+            throw new NumberFormatException(errorMessage);
+        }
+    }
+
     private void respondWithFunction(HttpServletResponse resp, TabulatedFunction function, String source) throws IOException {
         List<UiPoint> points = new ArrayList<>();
         for (Point point : function) {
@@ -147,6 +164,41 @@ public class TabulatedFunctionServlet extends HttpServlet {
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
         resp.getWriter().write(objectMapper.writeValueAsString(response));
+    }
+    private void handleIntegral(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        IntegrationRequest request = objectMapper.readValue(req.getInputStream(), IntegrationRequest.class);
+        if (request.getPoints() == null || request.getPoints().size() < 2) {
+            throw new IllegalArgumentException("Нужно минимум две точки для интегрирования");
+        }
+
+        double from = parseDouble(request.getFrom(), "Нижний предел интегрирования должен быть числом");
+        double to = parseDouble(request.getTo(), "Верхний предел интегрирования должен быть числом");
+        if (from >= to) {
+            throw new IllegalArgumentException("Начало интервала должно быть меньше конца");
+        }
+
+        int threads = parsePositiveInt(request.getThreads(), "Количество потоков должно быть положительным");
+        TabulatedFunction function = buildFunctionFromPoints(request.getPoints(), request.getFactoryType());
+
+        ParallelIntegralCalculator calculator = new ParallelIntegralCalculator();
+        double result = calculator.integrate(function, from, to, threads);
+
+        IntegralResponse response = new IntegralResponse(String.format("Интеграл на [%s; %s]", request.getFrom(), request.getTo()), result);
+        resp.setStatus(HttpServletResponse.SC_OK);
+        resp.setContentType("application/json");
+        resp.setCharacterEncoding("UTF-8");
+        resp.getWriter().write(objectMapper.writeValueAsString(response));
+    }
+
+    private TabulatedFunction buildFunctionFromPoints(List<UiPoint> points, String factoryType) {
+        double[] xValues = new double[points.size()];
+        double[] yValues = new double[points.size()];
+        for (int i = 0; i < points.size(); i++) {
+            UiPoint point = points.get(i);
+            xValues[i] = point.x();
+            yValues[i] = point.y();
+        }
+        return resolveFactory(factoryType).create(xValues, yValues);
     }
     private TabulatedFunctionFactory resolveFactory(String factoryType) {
         if (factoryType == null || factoryType.isBlank()) {

@@ -5,9 +5,10 @@ const arrayModal = document.getElementById('array-modal');
 const operationsModal = document.getElementById('operations-modal');
 const storageModal = document.getElementById('storage-modal');
 const diffModal = document.getElementById('diff-modal');
+const integralModal = document.getElementById('integral-modal');
 const functionModal = document.getElementById('function-modal');
 const errorModal = document.getElementById('error-modal');
-const modals = [arrayModal, functionModal, operationsModal, storageModal, diffModal, errorModal];
+const modals = [arrayModal, functionModal, operationsModal, storageModal, diffModal, integralModal, errorModal];
 
 const arraySizeInput = document.getElementById('array-size');
 const buildTableButton = document.getElementById('build-table');
@@ -29,6 +30,13 @@ const saveFunctionButton = document.getElementById('save-function');
 const loadFunctionSelect = document.getElementById('load-function-select');
 const loadFunctionButton = document.getElementById('load-function');
 const clearSavedButton = document.getElementById('clear-saved');
+const exportFunctionSelect = document.getElementById('export-function-select');
+const exportNameInput = document.getElementById('export-name');
+const exportFormatSelect = document.getElementById('export-format');
+const exportDownloadButton = document.getElementById('export-download');
+const importFormatSelect = document.getElementById('import-format');
+const importFileInput = document.getElementById('import-file');
+const importUploadButton = document.getElementById('import-upload');
 
 const diffSourceSelect = document.getElementById('diff-source-select');
 const diffSizeInput = document.getElementById('diff-size');
@@ -37,6 +45,13 @@ const buildDiffTableButton = document.getElementById('build-diff-table');
 const diffTableBody = document.getElementById('diff-table-body');
 const diffResultBody = document.getElementById('diff-result-body');
 const runDiffButton = document.getElementById('run-diff');
+
+const integralFunctionSelect = document.getElementById('integral-function-select');
+const integralFromInput = document.getElementById('integral-from');
+const integralToInput = document.getElementById('integral-to');
+const integralThreadsInput = document.getElementById('integral-threads');
+const runIntegralButton = document.getElementById('run-integral');
+const integralResult = document.getElementById('integral-result');
 
 const functionSelect = document.getElementById('function-select');
 const fromInput = document.getElementById('from-value');
@@ -73,6 +88,9 @@ factorySelect.addEventListener('change', (event) => {
 });
 ['open-diff-modal', 'open-diff-from-nav'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', () => openModal(diffModal));
+});
+['open-integral-from-nav'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', () => openModal(integralModal));
 });
 factorySelect.addEventListener('change', (event) => setFactory(event.target.value));
 document.querySelectorAll('[data-close]').forEach(button => button.addEventListener('click', closeAllModals));
@@ -198,6 +216,59 @@ loadFunctionButton.addEventListener('click', () => {
     }
     addResultCard({source: `Загружено: ${entry.name}`, points: entry.points});
 });
+exportDownloadButton.addEventListener('click', async () => {
+    const entry = resolveEntry(exportFunctionSelect.value);
+    if (!entry) {
+        return showError('Выберите функцию для выгрузки.');
+    }
+    const body = {
+        points: entry.points,
+        name: exportNameInput.value.trim() || 'function',
+        format: exportFormatSelect.value,
+        factoryType: selectedFactory
+    };
+    try {
+        const response = await fetch('/ui/storage/export', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({error: 'Не удалось скачать файл'}));
+            return showError(data.error || 'Не удалось скачать файл');
+        }
+        const blob = await response.blob();
+        const extension = exportFormatSelect.value || 'json';
+        downloadFile(blob, `${body.name}.${extension}`);
+    } catch (e) {
+        showError('Ошибка при выгрузке файла.');
+    }
+});
+
+importUploadButton.addEventListener('click', async () => {
+    const file = importFileInput.files?.[0];
+    if (!file) {
+        return showError('Выберите файл для импорта.');
+    }
+    const format = importFormatSelect.value;
+    try {
+        const content = await file.text();
+        const response = await fetch(`/ui/storage/import?format=${format}&factoryType=${selectedFactory}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'text/plain'},
+            body: content
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({error: 'Не удалось импортировать файл'}));
+            return showError(data.error || 'Не удалось импортировать файл');
+        }
+        const data = await response.json();
+        addResultCard(data);
+        closeModal(storageModal);
+    } catch (e) {
+        showError('Ошибка при чтении файла.');
+    }
+});
 
 clearSavedButton.addEventListener('click', () => {
     if (!savedFunctions.length) {
@@ -247,7 +318,36 @@ runDiffButton.addEventListener('click', () => {
         showError(e.message);
     }
 });
-
+runIntegralButton.addEventListener('click', async () => {
+    const entry = resolveEntry(integralFunctionSelect.value);
+    if (!entry) {
+        return showError('Выберите функцию для интегрирования.');
+    }
+    const body = {
+        points: entry.points,
+        from: integralFromInput.value.trim(),
+        to: integralToInput.value.trim(),
+        threads: integralThreadsInput.value.trim(),
+        factoryType: selectedFactory
+    };
+    try {
+        const response = await fetch('/ui/tabulated/integral', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({error: 'Не удалось вычислить интеграл'}));
+            return showError(data.error || 'Не удалось вычислить интеграл');
+        }
+        const data = await response.json();
+        integralResult.textContent = `Результат: ${data.result.toFixed(6)}`;
+        addResultCard({source: data.source, result: data.result});
+        closeModal(integralModal);
+    } catch (e) {
+        showError('Ошибка вычисления интеграла.');
+    }
+});
 async function sendRequest(url, body, modalToClose) {
     try {
         const payload = {...body, factoryType: selectedFactory};
@@ -368,37 +468,44 @@ function showError(message) {
 }
 
 function addResultCard(data) {
-    const {source, points} = data;
-    if (!Array.isArray(points) || points.length === 0) {
+    const {source, points, result} = data;
+        if ((!Array.isArray(points) || points.length === 0) && typeof result !== 'number') {
         return;
     }
-    const entry = registerFunction(source || 'Табулированная функция', points);
     const card = document.createElement('div');
     card.className = 'card';
 
     const title = document.createElement('div');
     title.className = 'tag';
-    title.textContent = entry.source;
-
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    const xs = points.map(p => p.x);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    meta.innerHTML = `Точек: ${points.length}<br>Интервал: [${minX.toFixed(2)}; ${maxX.toFixed(2)}]`;
-
-    const sampleList = document.createElement('div');
-    sampleList.className = 'meta';
-    const previewCount = Math.min(points.length, 5);
-    const lines = points.slice(0, previewCount)
-        .map((p, idx) => `#${idx + 1}: (${p.x.toFixed(2)}; ${p.y.toFixed(2)})`)
-        .join('<br>');
-    sampleList.innerHTML = `Первые значения:<br>${lines}`;
-
+    title.textContent = source || 'Результат';
     card.appendChild(title);
-    card.appendChild(meta);
-    card.appendChild(sampleList);
+    if (Array.isArray(points) && points.length) {
+            const entry = registerFunction(source || 'Табулированная функция', points);
+            const meta = document.createElement('div');
+            meta.className = 'meta';
+            const xs = points.map(p => p.x);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            meta.innerHTML = `Точек: ${points.length}<br>Интервал: [${minX.toFixed(2)}; ${maxX.toFixed(2)}]`;
 
+            const sampleList = document.createElement('div');
+            sampleList.className = 'meta';
+            const previewCount = Math.min(points.length, 5);
+            const lines = points.slice(0, previewCount)
+                .map((p, idx) => `#${idx + 1}: (${p.x.toFixed(2)}; ${p.y.toFixed(2)})`)
+                .join('<br>');
+            sampleList.innerHTML = `Первые значения:<br>${lines}`;
+
+            card.appendChild(meta);
+            card.appendChild(sampleList);
+        }
+
+        if (typeof result === 'number') {
+            const valueRow = document.createElement('div');
+            valueRow.className = 'meta';
+            valueRow.textContent = `Значение: ${result.toFixed(6)}`;
+            card.appendChild(valueRow);
+        }
     resultContainer.prepend(card);
 }
 function registerFunction(source, points) {
@@ -445,7 +552,7 @@ function syncFactoryBadges() {
 }
 
 function refreshFunctionDropdowns() {
-    const selects = [operationFunctionASelect, operationFunctionBSelect, diffSourceSelect, saveFunctionSelect];
+    const selects = [operationFunctionASelect, operationFunctionBSelect, diffSourceSelect, saveFunctionSelect, integralFunctionSelect, exportFunctionSelect];
     const options = getAvailableSources();
     selects.forEach(select => {
         if (!select) return;
@@ -537,6 +644,17 @@ function getOptionLabel(select) {
 
 function persistSaved() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFunctions));
+}
+
+function downloadFile(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
 }
 
 function hydrateSaved() {

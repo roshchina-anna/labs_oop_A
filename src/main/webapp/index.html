@@ -52,6 +52,11 @@
                 <h3>Дифференцирование</h3>
                 <button id="open-diff-from-nav" class="secondary">Открыть окно производной</button>
             </div>
+            <div class="nav-card">
+                <h3>Определённый интеграл</h3>
+                <p class="muted">Параллельное вычисление площади под графиком</p>
+                <button id="open-integral-from-nav" class="secondary">Открыть окно интеграла</button>
+            </div>
         </div>
     </section>
 
@@ -214,6 +219,66 @@
                     <button id="load-function" class="secondary">Добавить в историю</button>
                     <button id="clear-saved" class="ghost">Очистить сохранения</button>
                 </div>
+            </div>
+            <div class="divider"></div>
+            <h4>XML/JSON через API</h4>
+            <div class="form-grid">
+                <label class="stacked">Функция для выгрузки
+                    <select id="export-function-select"></select>
+                </label>
+                <label class="stacked">Имя файла
+                    <input id="export-name" type="text" placeholder="function">
+                </label>
+                <label class="stacked">Формат
+                    <select id="export-format">
+                        <option value="json">JSON</option>
+                        <option value="xml">XML</option>
+                    </select>
+                </label>
+                <button id="export-download" class="secondary">Скачать файл</button>
+            </div>
+            <div class="divider"></div>
+            <h4>Загрузка из файла</h4>
+            <div class="form-grid">
+                <label class="stacked">Формат файла
+                    <select id="import-format">
+                        <option value="json">JSON</option>
+                        <option value="xml">XML</option>
+                    </select>
+                </label>
+                <label class="stacked">Выберите файл
+                    <input id="import-file" type="file" accept=".json,.xml,text/xml,application/json">
+                </label>
+                <button id="import-upload" class="secondary">Импортировать</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="integral-modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal__window wide">
+        <header class="modal__header">
+            <h3>Определённый интеграл</h3>
+            <button class="ghost" data-close>Закрыть</button>
+        </header>
+        <div class="modal__body">
+            <div class="form-grid">
+                <label class="stacked">Функция для интегрирования
+                    <select id="integral-function-select"></select>
+                </label>
+                <label class="stacked">Нижний предел (a)
+                    <input id="integral-from" type="text" inputmode="decimal" placeholder="например, 0">
+                </label>
+                <label class="stacked">Верхний предел (b)
+                    <input id="integral-to" type="text" inputmode="decimal" placeholder="например, 5">
+                </label>
+                <label class="stacked">Число потоков
+                    <input id="integral-threads" type="text" inputmode="numeric" value="4">
+                </label>
+            </div>
+            <div class="pill-grid">
+                <button id="run-integral" class="primary">Вычислить интеграл</button>
+                <div id="integral-result" class="badge"></div>
             </div>
         </div>
     </div>
