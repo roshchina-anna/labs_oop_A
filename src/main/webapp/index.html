@@ -18,7 +18,6 @@
 <header class="hero">
     <div>
         <h1>Создание табулированных функций</h1>
-        <p class="lead">Введите точки вручную или выберите простую функцию, чтобы получить табулированное представление.</p>
     </div>
     <div class="actions">
         <button id="open-array-modal" class="primary">Создать из таблицы</button>
@@ -31,23 +30,19 @@
 <main>
     <section id="navigation" class="panel navigation">
         <div>
-            <h2>Главная страница-навигация</h2>
-            <p class="muted">Выберите подходящий способ создания функции. Настройки фабрики автоматически применяются ко всем окнам.</p>
+            <h2>Навигация</h2>
         </div>
         <div class="nav-grid">
             <div class="nav-card">
                 <h3>Из таблицы точек</h3>
-                <p class="muted">Постройте таблицу x/y и создайте табулированную функцию в один клик.</p>
                 <button id="open-array-from-nav" class="secondary">Открыть окно ввода</button>
             </div>
             <div class="nav-card">
                 <h3>Из математической функции</h3>
-                <p class="muted">Выберите встроенную функцию и задайте интервал с количеством точек.</p>
                 <button id="open-function-from-nav" class="secondary">Открыть окно дискретизации</button>
             </div>
             <div class="nav-card">
                 <h3>Операции и сохранение</h3>
-                <p class="muted">Сложение, вычитание, умножение и деление двух табулированных функций.</p>
                 <div class="pill-grid">
                     <button id="open-operations-from-nav" class="secondary">Поэлементные операции</button>
                     <button id="open-storage-modal" class="secondary">Сохранить/загрузить</button>
@@ -55,7 +50,6 @@
             </div>
             <div class="nav-card">
                 <h3>Дифференцирование</h3>
-                <p class="muted">Загрузите функцию или введите таблицу и получите производную в отдельной таблице.</p>
                 <button id="open-diff-from-nav" class="secondary">Открыть окно производной</button>
             </div>
         </div>
@@ -73,21 +67,17 @@
             </div>
         </div>
         <div class="form-grid">
-            <label class="stacked">Способ хранения точек
-                <select id="factory-select">
-                    <option value="array">ArrayTabulatedFunctionFactory (массив)</option>
-                    <option value="list">LinkedListTabulatedFunctionFactory (список)</option>
-                </select>
+            <select id="factory-select">
+                <option value="array">ArrayTabulatedFunctionFactory (массив)</option>
+                <option value="list">LinkedListTabulatedFunctionFactory (список)</option>
+            </select>
             </label>
             <div class="info-box">
-                <p class="muted">Массив подойдёт для компактного хранения и быстрого доступа по индексу, связный список — для частых вставок и удалений.</p>
-                <p class="muted">Изменение настроек моментально обновляет все окна создания функций.</p>
             </div>
         </div>
     </section>
     <section class="panel">
         <h2>Последние созданные функции</h2>
-        <p id="history" class="muted">После успешного создания функция появится здесь с основными характеристиками.</p>
         <div id="result-container" class="result-grid"></div>
     </section>
 </main>
