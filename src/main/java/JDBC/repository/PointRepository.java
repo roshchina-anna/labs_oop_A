@@ -114,6 +114,20 @@ public class PointRepository {
         }
     }
 
+    public void deleteByFunctionId(Integer functionId) {
+        logger.info("Deleting all points for function {}", functionId);
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                     SqlHelper.loadSqlFromFile("scripts/points/delete_points_by_function_id.sql")
+             )) {
+            stmt.setInt(1, functionId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            logger.error("Error when deleting points for function {}: {}", functionId, e.getMessage());
+            throw new RuntimeException("Failed to delete points for function", e);
+        }
+    }
+
     // Поиск с сортировкой по X
     public List<Point> findAllSortedByX() {
         logger.info("Search for points sorted by x_value");

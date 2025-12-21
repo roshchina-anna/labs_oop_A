@@ -1,7 +1,12 @@
 package ui;
 
+import DTO.Function;
+import DTO.Point;
+import DTO.User;
+import JDBC.repository.FunctionRepository;
+import JDBC.repository.PointRepository;
+import JDBC.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import functions.Point;
 import functions.TabulatedFunction;
 import functions.factory.ArrayTabulatedFunctionFactory;
 import functions.factory.LinkedListTabulatedFunctionFactory;
@@ -18,12 +23,31 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
+
+import static org.postgresql.gss.MakeGSS.authenticate;
 
 @WebServlet("/ui/storage/*")
 public class TabulatedFunctionStorageServlet extends HttpServlet {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final UiExceptionHandler exceptionHandler = new UiExceptionHandler();
+
+    private final PointRepository pointRepository = new PointRepository();
+    private final FunctionRepository functionRepository = new FunctionRepository();
+    private final UserRepository userRepository = new UserRepository();
+    private static final String TABULATED_EXPRESSION = "tabulated-ui";
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        String path = req.getPathInfo();
+        if ("/functions".equals(path)) {
+            sendSavedFunctions(req, resp);
+            return;
+        }
+        resp.sendError(HttpServletResponse.SC_NOT_FOUND);
+    }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -36,11 +60,33 @@ public class TabulatedFunctionStorageServlet extends HttpServlet {
             switch (path) {
                 case "/export" -> handleExport(req, resp);
                 case "/import" -> handleImport(req, resp);
+                case "/functions" -> handleSave(req, resp);
                 default -> resp.sendError(HttpServletResponse.SC_NOT_FOUND);
             }
         } catch (Exception e) {
             exceptionHandler.handle(e, resp);
         }
+    }
+    @Override
+    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        String path = req.getPathInfo();
+        if (!"/functions".equals(path)) {
+            resp.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
+        }
+        User user = authenticate(req, resp);
+        if (user == null) {
+            return;
+        }
+        List<Function> functions = functionRepository.findByUserId(user.getId());
+        for (Function function : functions) {
+            if (!Objects.equals(function.getExpression(), TABULATED_EXPRESSION)) {
+                continue;
+            }
+            pointRepository.deleteByFunctionId(function.getId());
+            functionRepository.delete(function.getId());
+        }
+        resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
     }
 
     private void handleExport(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -97,6 +143,78 @@ public class TabulatedFunctionStorageServlet extends HttpServlet {
         return raw.trim().toLowerCase();
     }
 
+    private void sendSavedFunctions(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        User user = authenticate(req, resp);
+        if (user == null) {
+            return;
+        }
+        List<Function> userFunctions = functionRepository.findByUserId(user.getId());
+        List<SavedFunctionResponse> payload = new ArrayList<>();
+        for (Function function : userFunctions) {
+            if (!Objects.equals(function.getExpression(), TABULATED_EXPRESSION)) {
+                continue;
+            }
+            List<Point> points = pointRepository.findByFunctionId(function.getId());
+            points.sort(Comparator.comparing(Point::getXValue));
+            payload.add(new SavedFunctionResponse(function.getId(), function.getName(), toUiPoints(points)));
+        }
+        resp.setStatus(HttpServletResponse.SC_OK);
+        resp.setContentType("application/json");
+        resp.setCharacterEncoding("UTF-8");
+        resp.getWriter().write(objectMapper.writeValueAsString(payload));
+    }
+
+    private void handleSave(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        User user = authenticate(req, resp);
+        if (user == null) {
+            return;
+        }
+        SavedFunctionRequest request = objectMapper.readValue(req.getInputStream(), SavedFunctionRequest.class);
+        if (request.getName() == null || request.getName().isBlank()) {
+            throw new IllegalArgumentException("Введите название сохранения");
+        }
+        if (request.getPoints() == null || request.getPoints().size() < 2) {
+            throw new IllegalArgumentException("Нужно минимум две точки");
+        }
+        Function target = findExistingFunction(user.getId(), request.getName());
+        if (target == null) {
+            target = new Function(request.getName(), TABULATED_EXPRESSION, user.getId());
+            Integer id = functionRepository.insert(target);
+            target.setId(id);
+        } else {
+            pointRepository.deleteByFunctionId(target.getId());
+        }
+        for (UiPoint point : request.getPoints()) {
+            pointRepository.insert(new Point(target.getId(), point.x(), point.y()));
+        }
+        SavedFunctionResponse response = new SavedFunctionResponse(target.getId(), target.getName(), request.getPoints());
+        resp.setStatus(HttpServletResponse.SC_CREATED);
+        resp.setContentType("application/json");
+        resp.setCharacterEncoding("UTF-8");
+        resp.getWriter().write(objectMapper.writeValueAsString(response));
+    }
+
+    private Function findExistingFunction(Integer userId, String name) {
+        List<Function> functions = functionRepository.findByUserId(userId);
+        for (Function function : functions) {
+            if (!Objects.equals(function.getExpression(), TABULATED_EXPRESSION)) {
+                continue;
+            }
+            if (function.getName() != null && function.getName().equals(name)) {
+                return function;
+            }
+        }
+        return null;
+    }
+
+    private List<UiPoint> toUiPoints(List<Point> points) {
+        List<UiPoint> result = new ArrayList<>();
+        for (Point point : points) {
+            result.add(new UiPoint(point.getXValue(), point.getYValue()));
+        }
+        return result;
+    }
+
     private TabulatedFunction buildFunctionFromPoints(List<UiPoint> points, String factoryType) {
         double[] xValues = new double[points.size()];
         double[] yValues = new double[points.size()];
@@ -110,7 +228,7 @@ public class TabulatedFunctionStorageServlet extends HttpServlet {
 
     private void respondWithFunction(HttpServletResponse resp, TabulatedFunction function, String source) throws IOException {
         List<UiPoint> points = new ArrayList<>();
-        for (Point point : function) {
+        for (functions.Point point : function) {
             points.add(new UiPoint(point.x, point.y));
         }
         TabulatedFunctionResponse response = new TabulatedFunctionResponse(source, points);

@@ -1,5 +1,4 @@
 const MAX_POINTS = 500;
-const STORAGE_KEY = 'tabulated_saved_functions';
 const AUTH_TOKEN_KEY = 'authToken';
 const overlay = document.getElementById('overlay');
 const arrayModal = document.getElementById('array-modal');
@@ -113,6 +112,9 @@ openLoginButton.addEventListener('click', () => showAuthPanels('login'));
 openRegisterButton.addEventListener('click', () => showAuthPanels('register'));
 logoutButton.addEventListener('click', () => {
     clearAuth();
+    savedFunctions = [];
+    refreshSavedDropdown();
+    refreshFunctionDropdowns();
     updateAuthUI();
 });
 loginSubmit.addEventListener('click', handleLogin);
@@ -215,7 +217,7 @@ runOperationButton.addEventListener('click', () => {
 });
 
 // Сохранение и загрузка
-saveFunctionButton.addEventListener('click', () => {
+saveFunctionButton.addEventListener('click', async () => {
     const entry = resolveEntry(saveFunctionSelect.value);
     const name = saveNameInput.value.trim();
     if (!entry) {
@@ -224,15 +226,31 @@ saveFunctionButton.addEventListener('click', () => {
     if (!name) {
         return showError('Введите название сохранения.');
     }
-    const payload = {id: `saved-${Date.now()}`, name, points: entry.points};
-    savedFunctions = savedFunctions.filter(f => f.name !== name);
-    savedFunctions.push(payload);
-    persistSaved();
-    refreshSavedDropdown();
+    if (!currentUser) {
+            return showError('Войдите в систему, чтобы сохранять функции.');
+        }
+        try {
+            const response = await authorizedFetch('/ui/storage/functions', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, points: entry.points})
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({error: 'Не удалось сохранить функцию'}));
+                return showError(data.error || 'Не удалось сохранить функцию');
+            }
+            const saved = await response.json();
+            savedFunctions = savedFunctions.filter(f => f.id !== saved.id && f.name !== saved.name);
+            savedFunctions.push(saved);
+            refreshSavedDropdown();
+            refreshFunctionDropdowns();
+        } catch (e) {
+            showError('Ошибка сохранения функции.');
+        }
 });
 
 loadFunctionButton.addEventListener('click', () => {
-    const entry = savedFunctions.find(f => f.id === loadFunctionSelect.value);
+    const entry = savedFunctions.find(f => String(f.id) === loadFunctionSelect.value);
     if (!entry) {
         return showError('Выберите сохранение для загрузки.');
     }
@@ -292,14 +310,24 @@ importUploadButton.addEventListener('click', async () => {
     }
 });
 
-clearSavedButton.addEventListener('click', () => {
+clearSavedButton.addEventListener('click', async () => {
     if (!savedFunctions.length) {
         return;
     }
-    if (confirm('Удалить все сохранения?')) {
+    if (!confirm('Удалить все сохранения?')) {
+        return;
+    }
+    try {
+        const response = await authorizedFetch('/ui/storage/functions', {method: 'DELETE'});
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({error: 'Не удалось очистить сохранения'}));
+            return showError(data.error || 'Не удалось очистить сохранения');
+            }
         savedFunctions = [];
-        persistSaved();
         refreshSavedDropdown();
+        refreshFunctionDropdowns();
+    } catch (e) {
+        showError('Ошибка при очистке сохранений.');
     }
 });
 
@@ -433,6 +461,8 @@ async function handleLogin() {
         currentUser = await response.json();
         setAuthToken(token);
         updateAuthUI();
+        await loadFunctions();
+        await loadSavedFunctions();
     } catch (e) {
         showError('Не удалось выполнить вход.');
     }
@@ -462,6 +492,8 @@ async function handleRegister() {
             currentUser = await meResponse.json();
             setAuthToken(token);
             updateAuthUI();
+            await loadFunctions();
+            await loadSavedFunctions();
         }
     } catch (e) {
         showError('Ошибка при регистрации.');
@@ -748,7 +780,7 @@ function refreshSavedDropdown() {
 
 function getAvailableSources() {
     const savedEntries = savedFunctions.map(item => ({
-        id: item.id,
+        id: String(item.id),
         source: `Сохранение: ${item.name}`,
         points: item.points
     }));
@@ -792,8 +824,31 @@ function getOptionLabel(select) {
     return select?.selectedOptions?.[0]?.textContent || '';
 }
 
-function persistSaved() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFunctions));
+async function loadSavedFunctions() {
+    if (!currentUser) {
+        savedFunctions = [];
+        refreshSavedDropdown();
+        refreshFunctionDropdowns();
+        return;
+    }
+    try {
+        const response = await authorizedFetch('/ui/storage/functions');
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({error: 'Не удалось загрузить сохранения'}));
+            showError(data.error || 'Не удалось загрузить сохранения');
+            return;
+        }
+        const data = await response.json();
+        if (Array.isArray(data)) {
+            savedFunctions = data;
+        } else {
+            savedFunctions = [];
+        }
+    } catch (e) {
+        savedFunctions = [];
+    }
+    refreshSavedDropdown();
+    refreshFunctionDropdowns();
 }
 
 function downloadFile(blob, filename) {
@@ -807,28 +862,12 @@ function downloadFile(blob, filename) {
     URL.revokeObjectURL(url);
 }
 
-function hydrateSaved() {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-        savedFunctions = [];
-        return;
-    }
-    try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-            savedFunctions = parsed;
-        }
-    } catch (e) {
-        savedFunctions = [];
-    }
-}
-
 setFactory(selectedFactory);
-hydrateSaved();
 refreshSavedDropdown();
 refreshFunctionDropdowns();
 hydrateAuth().then(() => {
     if (currentUser) {
         loadFunctions();
     }
+    loadSavedFunctions();
 });
