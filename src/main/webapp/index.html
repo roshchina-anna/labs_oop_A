@@ -26,9 +26,7 @@
     </nav>
     <header class="hero">
         <div>
-            <p class="eyebrow">Современный клиент на Vue 3</p>
             <h1>Создание табулированных функций</h1>
-            <p class="lead">Интерфейс переписан на Vue 3: единый источник состояния, простые формы, мгновенное обновление результатов и совместимость с Tomcat/Spring Boot.</p>
         </div>
         <div class="actions">
             <button class="primary" @click="scrollTo('builder')">Создать функцию</button>
@@ -42,7 +40,7 @@
                 <div class="section-header">
                     <div>
                         <p class="eyebrow">Таблица значений</p>
-                        <h2>Создать из вручную введённых точек</h2>
+                        <h2>Создать из точек</h2>
                     </div>
                     <div class="pill">{{ currentFactoryLabel }}</div>
                 </div>
@@ -79,7 +77,7 @@
                 <div class="section-header">
                     <div>
                         <p class="eyebrow">Дискретизация</p>
-                        <h2>Создать из математической функции</h2>
+                        <h2>Создать из функции</h2>
                     </div>
                     <div class="pill ghost-pill" @click="loadFunctions">Обновить список</div>
                 </div>
@@ -117,7 +115,6 @@
                 </div>
                 <div class="pill">{{ currentFactoryLabel }}</div>
             </div>
-            <p class="muted">Выберите ранее созданную функцию и задайте пределы интегрирования. Расчёт выполняется на сервере.</p>
             <div class="form-grid">
                 <label class="stacked">Функция
                     <select v-model="integralForm.resultId">
@@ -147,37 +144,34 @@
                     <p class="eyebrow">Результаты</p>
                     <h2>Последние построенные функции</h2>
                 </div>
-                <div class="tag" v-if="results.length">{{ results.length }} элементов</div>
-            </div>
-            <div v-if="!results.length" class="muted">Создайте функцию, чтобы увидеть её здесь.</div>
-            <div class="result-grid" v-else>
-                <article v-for="entry in results" :key="entry.id" class="result-card">
-                    <header class="result-card__header">
-                        <div>
-                            <p class="eyebrow">{{ entry.source }}</p>
-                            <h3>{{ entry.title }}</h3>
-                        </div>
-                        <div class="pill">{{ entry.points.length }} точек</div>
-                    </header>
-                    <table class="data-table compact">
-                        <thead><tr><th>x</th><th>y</th></tr></thead>
-                        <tbody>
-                        <tr v-for="(point, index) in entry.points" :key="index">
-                            <td>{{ point.x }}</td>
-                            <td>{{ point.y }}</td>
-                        </tr>
-                        </tbody>
-                    </table>
-                </article>
-            </div>
+                <div class="section-actions">
+                    <div class="tag" v-if="results.length">{{ results.length }} элементов</div>
+                    <button class="ghost" :disabled="!hasResults && !hasSavedFunctions" @click="openSaveModal('local')">
+                        Сохранения и редактирование
+                    </button>
+                </div>
+                <div class="result-grid" v-else>
+                    <article v-for="entry in results" :key="entry.id" class="result-card">
+                        <header class="result-card__header">
+                            <div>
+                                <p class="eyebrow">{{ entry.source }}</p>
+                                <h3>{{ entry.title }}</h3>
+                            </div>
+                            <div class="pill">{{ entry.points.length }} точек</div>
+                        </header>
+                        <table class="data-table compact">
+                            <thead><tr><th>x</th><th>y</th></tr></thead>
+                            <tbody>
+                            <tr v-for="(point, index) in entry.points" :key="index">
+                                <td>{{ point.x }}</td>
+                                <td>{{ point.y }}</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </article>
+                </div>
         </section>
-        <section v-if="error" class="panel error-box">
-            <div class="section-header">
-                <h2>Ошибка</h2>
-                <button class="ghost" @click="error = null">Скрыть</button>
-            </div>
-            <p>{{ error }}</p>
-        </section>
+
         <section v-if="message" class="panel success-box">
             <div class="section-header">
                 <h2>Успешно</h2>
@@ -186,6 +180,64 @@
             <p>{{ message }}</p>
         </section>
     </main>
+    <div v-if="saveModal.visible" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Сохранения</p>
+                    <h2>Редактирование функций</h2>
+                </div>
+                <button class="ghost" @click="closeSaveModal">Закрыть</button>
+            </div>
+            <p class="muted">Все изменения применяются локально и отправляются одним запросом без покомпонентных обновлений.</p>
+            <div class="segmented">
+                <button :class="{ active: saveModal.source === 'local' }" :disabled="!hasResults" @click="switchSource('local')">
+                    Локальные результаты
+                </button>
+                <button :class="{ active: saveModal.source === 'saved' }" :disabled="!hasSavedFunctions" @click="switchSource('saved')">
+                    Загруженные из БД
+                </button>
+            </div>
+
+            <div class="form-grid">
+                <label class="stacked">Выбор функции
+                    <select v-if="saveModal.source === 'local'" v-model="saveModal.selectedLocalId" @change="applySelection">
+                        <option disabled value="">Выберите локальную функцию</option>
+                        <option v-for="entry in results" :key="entry.id" :value="entry.id">{{ entry.title }}</option>
+                    </select>
+                    <select v-else v-model="saveModal.selectedSavedId" @change="applySelection">
+                        <option disabled value="">Выберите сохранённую функцию</option>
+                        <option v-for="entry in savedFunctions" :key="entry.id" :value="entry.id">{{ entry.name }}</option>
+                    </select>
+                </label>
+                <label class="stacked">Имя функции
+                    <input v-model="saveModal.form.name" type="text" placeholder="Название для сохранения">
+                </label>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead><tr><th>x</th><th>y</th><th></th></tr></thead>
+                    <tbody>
+                    <tr v-for="(point, index) in saveModal.form.points" :key="index">
+                        <td><input v-model="point.x" type="text" inputmode="decimal" :placeholder="`x${index + 1}`"></td>
+                        <td><input v-model="point.y" type="text" inputmode="decimal" :placeholder="`y${index + 1}`"></td>
+                        <td class="table-actions">
+                            <button class="ghost" :disabled="saveModal.form.points.length <= 2" @click="removeEditablePoint(index)">Удалить</button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="actions">
+                <button class="ghost" @click="addEditablePoint">Добавить точку</button>
+            </div>
+            <div class="actions end">
+                <button class="secondary" @click="closeSaveModal">Отмена</button>
+                <button class="primary" @click="saveEditedFunction">Сохранить изменения одним запросом</button>
+            </div>
+        </div>
+    </div>
 </div>
 <script src="scripts.js"></script>
 </body>
