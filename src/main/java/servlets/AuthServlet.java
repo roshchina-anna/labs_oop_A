@@ -24,71 +24,33 @@ public class AuthServlet extends HttpServlet {
 
     @Override
     public void init() {
-        ensureRepository();
+        this.userRepository = new UserRepository();
         this.objectMapper = new ObjectMapper();
-    }
-
-    private synchronized boolean ensureRepository() {
-        if (this.userRepository != null) {
-            return true;
-        }
-        try {
-            this.userRepository = new UserRepository();
-            return true;
-        } catch (Exception e) {
-            logger.error("Не удалось инициализировать UserRepository", e);
-            this.userRepository = null;
-            return false;
-        }
     }
 
     @Override
     // (POST /api/auth/register) - доступ общий (без авторизации)
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         logger.info("Получен запрос на регистрацию нового пользователя");
-        if (!ensureRepository()) {
-            sendError(resp, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                    "Сервис временно недоступен. Повторите попытку позже.");
-            return;
-        }
         // чтение тела
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = req.getReader()) {
+            String line;
+            while ((line = reader.readLine()) != null) sb.append(line);
+        }
         try {
-            String username;
-            String plainPassword;
+            JsonNode jsonNode = objectMapper.readTree(sb.toString());
 
-            String contentType = req.getContentType();
-            if (contentType != null && contentType.startsWith("application/x-www-form-urlencoded")) {
-                username = req.getParameter("username");
-                plainPassword = req.getParameter("password");
-            } else {
-                // чтение тела
-                StringBuilder sb = new StringBuilder();
-                try (BufferedReader reader = req.getReader()) {
-                    String line;
-                    while ((line = reader.readLine()) != null) sb.append(line);
-                }
-
-                if (sb.length() == 0) {
-                    sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
-                            "Пустое тело запроса");
-                    return;
-                }
-
-                try {
-                    JsonNode jsonNode = objectMapper.readTree(sb.toString());
-                    username = jsonNode.has("username") ? jsonNode.get("username").asText() : null;
-                    plainPassword = jsonNode.has("password") ? jsonNode.get("password").asText() : null;
-                } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-                    sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Неверный формат JSON");  // 400
-                    return;
-                }
-            }
-            if (username == null || plainPassword == null) {
+            // проверка обязательных полей
+            if (!jsonNode.has("username") || !jsonNode.has("password")) {
                 sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
                         "Требуются поля: username и password"); // 400
                 return;
             }
-            username = username.trim();
+
+            String username = jsonNode.get("username").asText().trim();
+            String plainPassword = jsonNode.get("password").asText();
+
             if (username.isEmpty() || plainPassword.isEmpty()) {
                 sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
                         "username и password не могут быть пустыми"); // 400
@@ -116,20 +78,19 @@ public class AuthServlet extends HttpServlet {
                 return;
             }
             user.setId(id);
-            String token = JwtUtil.generateToken(user);
             user.setPasswordHash(null);
             resp.setStatus(HttpServletResponse.SC_CREATED); // возврат статуса
             resp.setContentType("application/json");
             resp.setCharacterEncoding("UTF-8");
 
             // тело ответа
-            var responseNode = objectMapper.createObjectNode();
-            responseNode.put("token", token);
-            responseNode.set("user", objectMapper.valueToTree(user));
+            String responseJson = objectMapper.writeValueAsString(user);
             try (PrintWriter writer = resp.getWriter()) {
-                writer.print(objectMapper.writeValueAsString(responseNode));
+                writer.print(responseJson);
             }
             logger.info("пользователь создан");
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Неверный формат JSON");  // 400
         } catch (Exception e) {
             logger.error("Ошибка при регистрации", e);
             sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,

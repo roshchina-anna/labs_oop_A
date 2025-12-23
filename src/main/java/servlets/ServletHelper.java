@@ -24,16 +24,8 @@ public class ServletHelper {
     }
     public static User authenticateUser(HttpServletRequest req, UserRepository userRepository) {
         String authHeader = req.getHeader("Authorization");
-        if (authHeader == null || authHeader.isBlank()) {
-            logger.warn("Отсутствует заголовок Authorization");
-            return null;
-        }
-        if (authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring("Bearer ".length());
-            return JwtUtil.validateToken(token, userRepository);
-        }
-        if (!authHeader.startsWith("Basic ")) {
-            logger.warn("Неверный заголовок Authorization");
+        if (authHeader == null || !authHeader.startsWith("Basic ")) {
+            logger.warn("Отсутствует или неверный заголовок Authorization");
             return null;
         }
         try {

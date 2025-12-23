@@ -1,1 +1,0 @@
-DELETE FROM points WHERE function_id = ?;

@@ -11,15 +11,6 @@ import org.slf4j.LoggerFactory;
 
 public class DatabaseConnection {
     private static final Logger logger = LoggerFactory.getLogger(DatabaseConnection.class.getName());
-    static {
-        try {
-            Class.forName("org.postgresql.Driver");
-            logger.info("PostgreSQL Driver registered successfully.");
-        } catch (ClassNotFoundException e) {
-            logger.error("Failed to load PostgreSQL driver", e);
-            throw new ExceptionInInitializerError(e);
-        }
-    }
     private static final String PROPERTIES_FILE = "database.properties";
     private static final String DEFAULT_URL = "jdbc:postgresql://host.docker.internal:5432/math_functions_db";
     private static final String DEFAULT_USER = "postgres";

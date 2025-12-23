@@ -10,20 +10,7 @@ import java.util.List;
 
 public class UserRepository {
     private static final Logger logger = LoggerFactory.getLogger(UserRepository.class);
-    public UserRepository() {
-        ensureUsersTable();
-    }
 
-    private void ensureUsersTable() {
-        try (Connection conn = DatabaseConnection.getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.execute(SqlHelper.loadSqlFromFile("scripts/users/create_users_table.sql"));
-            logger.info("Users table ensured");
-        } catch (SQLException e) {
-            logger.error("Failed to ensure users table exists: {}", e.getMessage());
-            throw new RuntimeException("Failed to ensure users table exists", e);
-        }
-    }
     // добавление пользователя
     public Integer insert(User user) {
         logger.info("Operation start: adding a user {}", user.getUsername());
