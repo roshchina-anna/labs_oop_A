@@ -4,8 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Табулированные функции</title>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Фолбэк: если внешние зависимости заблокированы, показываем понятное сообщение вместо "зависшего" интерфейса.
+        window.__externalLibs = { ready: false };
+        window.__vueFallbackTimer = setTimeout(() => {
+            if (window.__externalLibs.ready) return;
+            const app = document.getElementById('app');
+            if (app) {
+                app.innerHTML = '<div class="card" style="max-width:900px;margin:24px auto">' +
+                    '<h2>Нужно интернет-соединение</h2>' +
+                    '<p class="status error">Не удалось загрузить клиентские зависимости (Vue, Chart.js). ' +
+                    'Подключите интернет или настройте доступ к CDN, затем обновите страницу.</p>' +
+                    '</div>';
+            }
+            document.body.classList.add('fallback');
+        }, 1200);
+    </script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js" onload="window.__externalLibs.ready = true; clearTimeout(window.__vueFallbackTimer);" onerror="clearTimeout(window.__vueFallbackTimer);"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" onerror="window.Chart = class { constructor(){} destroy(){} };" onload="if(!window.Chart){window.Chart = window.chartjs;}"></script>
     <style>
         :root {
             --bg: #0f172a;
@@ -586,9 +602,12 @@
     </div>
 </div>
 <script>
-    const { createApp, nextTick } = Vue;
 
-    createApp({
+    if (!window.Vue) {
+        console.error('Vue не загружен: проверьте подключение к CDN.');
+    } else {
+        const { createApp, nextTick } = Vue;
+        createApp({
         data() {
             return {
                 registerForm: { username: '', password: '' },
@@ -1191,6 +1210,7 @@
             }
         }
     }).mount('#app');
+    }
 </script>
 </body>
 </html>
