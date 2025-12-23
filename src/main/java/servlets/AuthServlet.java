@@ -116,15 +116,18 @@ public class AuthServlet extends HttpServlet {
                 return;
             }
             user.setId(id);
+            String token = JwtUtil.generateToken(user);
             user.setPasswordHash(null);
             resp.setStatus(HttpServletResponse.SC_CREATED); // возврат статуса
             resp.setContentType("application/json");
             resp.setCharacterEncoding("UTF-8");
 
             // тело ответа
-            String responseJson = objectMapper.writeValueAsString(user);
+            var responseNode = objectMapper.createObjectNode();
+            responseNode.put("token", token);
+            responseNode.set("user", objectMapper.valueToTree(user));
             try (PrintWriter writer = resp.getWriter()) {
-                writer.print(responseJson);
+                writer.print(objectMapper.writeValueAsString(responseNode));
             }
             logger.info("пользователь создан");
         } catch (Exception e) {
