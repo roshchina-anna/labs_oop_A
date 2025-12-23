@@ -19,9 +19,6 @@ import java.util.Objects;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-/**
- * Utility class that scans the {@code functions} package for {@link SimpleFunction} implementations.
- */
 public final class SimpleFunctionScanner {
     private static final Logger logger = LoggerFactory.getLogger(SimpleFunctionScanner.class);
     private static final String ROOT_PACKAGE = "functions";
