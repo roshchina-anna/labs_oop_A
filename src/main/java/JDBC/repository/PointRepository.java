@@ -29,6 +29,59 @@ public class PointRepository {
         }
     }
 
+    // пакетное добавление точек одной функции в рамках единой транзакции
+    public void insertBatch(List<Point> points) {
+        if (points == null || points.isEmpty()) {
+            logger.warn("Attempt to batch insert empty points list");
+            return;
+        }
+        Integer functionId = points.get(0).getFunctionId();
+        if (functionId == null) {
+            throw new IllegalArgumentException("Function id must be specified for batch insert");
+        }
+        logger.info("Starting batch insert for function {} with {} points", functionId, points.size());
+        String sql = SqlHelper.loadSqlFromFile("scripts/points/insert_point.sql");
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getConnection();
+            conn.setAutoCommit(false);
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                for (Point point : points) {
+                    if (!functionId.equals(point.getFunctionId())) {
+                        conn.rollback();
+                        throw new IllegalArgumentException("All points must reference the same function id in batch insert");
+                    }
+                    stmt.setInt(1, point.getFunctionId());
+                    stmt.setDouble(2, point.getXValue());
+                    stmt.setDouble(3, point.getYValue());
+                    stmt.addBatch();
+                }
+                stmt.executeBatch();
+                conn.commit();
+                logger.info("Batch insert completed for function {}", functionId);
+            }
+        } catch (SQLException e) {
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackEx) {
+                    logger.warn("Failed to rollback batch insert transaction: {}", rollbackEx.getMessage());
+                }
+            }
+            logger.error("Error during batch insert for function {}: {}", functionId, e.getMessage());
+            throw new RuntimeException("Failed to insert points batch", e);
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    logger.warn("Failed to close connection after batch insert: {}", e.getMessage());
+                }
+            }
+        }
+    }
+
     // получение всех точек функции
     public List<Point> findByFunctionId(Integer functionId) {
         logger.info("Start of operation: obtaining points for the ID function {}", functionId);

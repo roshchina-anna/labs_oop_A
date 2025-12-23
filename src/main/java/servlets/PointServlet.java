@@ -13,14 +13,14 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @WebServlet("/api/points/*")
 public class PointServlet extends HttpServlet {
@@ -174,7 +174,55 @@ public class PointServlet extends HttpServlet {
             String line;
             while ((line = reader.readLine()) != null) sb.append(line);
         }
-        Point p = objectMapper.readValue(sb.toString(), Point.class);
+        String body = sb.toString().trim();
+        if (body.startsWith("[")) {
+            List<Point> points = objectMapper.readValue(body, new TypeReference<List<Point>>() {});
+            if (points.isEmpty()) {
+                sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Points list is empty");
+                return;
+            }
+            Integer functionId = points.get(0).getFunctionId();
+            if (functionId == null) {
+                sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "FunctionId is required for all points");
+                return;
+            }
+            Function function = functionRepository.findById(functionId);
+            if (function == null) {
+                sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Function not found");
+                return;
+            }
+            if (!hasAccess(functionId, authUser)) {
+                sendError(resp, HttpServletResponse.SC_FORBIDDEN, "Access denied");
+                return;
+            }
+            Set<Double> seenX = new HashSet<>();
+            for (Point point : points) {
+                if (point.getFunctionId() == null || !functionId.equals(point.getFunctionId()) ||
+                        point.getXValue() == null || point.getYValue() == null) {
+                    sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "All points must have functionId, xValue and yValue");
+                    return;
+                }
+                if (!seenX.add(point.getXValue())) {
+                    sendError(resp, HttpServletResponse.SC_CONFLICT, "Duplicate xValue in request payload");
+                    return;
+                }
+            }
+            List<Point> existingPoints = pointRepository.findByFunctionId(functionId);
+            for (Point point : existingPoints) {
+                if (seenX.contains(point.getXValue())) {
+                    sendError(resp, HttpServletResponse.SC_CONFLICT, "Point with this functionId and xValue already exists");
+                    return;
+                }
+            }
+            pointRepository.insertBatch(points);
+            resp.setStatus(HttpServletResponse.SC_CREATED);
+            resp.setContentType("application/json");
+            resp.getWriter().print(objectMapper.writeValueAsString(points));
+            logger.info("Создано {} точек для function={}", points.size(), functionId);
+            return;
+        }
+
+        Point p = objectMapper.readValue(body, Point.class);
         // проверка обязательных полей
         if (p.getFunctionId() == null || p.getXValue() == null || p.getYValue() == null) {
             sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Missing fields"); // 400

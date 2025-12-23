@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JWT Аутентификация</title>
+    <title>Аутентификация</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <style>
         :root {
@@ -194,14 +194,12 @@
 <body>
 <div id="app">
     <header>
-        <h1>JWT-портал <span>Vue</span></h1>
-        <p class="subtitle">Регистрация, авторизация и запросы к API через Bearer токен</p>
+        <p class="subtitle">Регистрация/авторизация</p>
     </header>
 
     <div class="grid">
         <div class="card">
             <h2>Регистрация</h2>
-            <p class="subtitle">Создайте нового пользователя. Токен не нужен.</p>
             <label for="reg-username">Имя пользователя</label>
             <input id="reg-username" v-model="registerForm.username" placeholder="Введите логин">
             <label for="reg-password">Пароль</label>
@@ -211,48 +209,14 @@
 
         <div class="card">
             <h2>Авторизация</h2>
-            <p class="subtitle">Получите web token для дальнейших запросов.</p>
             <label for="login-username">Имя пользователя</label>
             <input id="login-username" v-model="loginForm.username" placeholder="Введите логин">
             <label for="login-password">Пароль</label>
             <input id="login-password" type="password" v-model="loginForm.password" placeholder="Введите пароль">
-            <button @click="login">Получить токен</button>
-
-            <div v-if="token" class="token-box" aria-live="polite">
-                <strong>Bearer токен:</strong>
-                <div>{{ token }}</div>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Личный кабинет</h2>
-            <p class="subtitle">Используйте токен для доступа к защищённому ресурсу /api/users/me</p>
-            <div class="pill" v-if="token">Token активен</div>
-            <div class="pill" v-else>Token отсутствует</div>
-            <ul>
-                <li>Нажмите «Запросить профиль» чтобы получить данные текущего пользователя.</li>
-                <li>Токен хранится в localStorage и автоматически подставляется.</li>
-            </ul>
-            <div class="actions">
-                <button @click="fetchProfile" :disabled="!token">Запросить профиль</button>
-                <button class="secondary" @click="logout" :disabled="!token">Выйти</button>
-            </div>
-            <div v-if="user" class="status success">
-                <strong>Пользователь:</strong> {{ user.username }}
-                <div>Роль: {{ user.role }}</div>
-                <div>ID: {{ user.id }}</div>
-            </div>
-        </div>
-
-        <div class="card" v-if="status.message">
-            <h2>Статус</h2>
-            <div class="status" :class="status.type">
-                {{ status.message }}
-            </div>
+            <button @click="login">Войти</button>
         </div>
     </div>
 </div>
-
 <script>
     const { createApp } = Vue;
 
@@ -296,7 +260,7 @@
                     this.token = data.token;
                     localStorage.setItem('jwt_token', data.token);
                     this.user = data.user;
-                    this.status = { message: 'Авторизация прошла успешно. Токен сохранён.', type: 'success' };
+                    this.status = { message: 'Авторизация прошла успешно.', type: 'success' };
                 } catch (err) {
                     this.status = { message: err.message, type: 'error' };
                 }
@@ -304,7 +268,7 @@
             async fetchProfile() {
                 this.clearStatus();
                 if (!this.token) {
-                    this.status = { message: 'Сначала авторизуйтесь и получите токен.', type: 'error' };
+                    this.status = { message: 'Сначала авторизуйтесь.', type: 'error' };
                     return;
                 }
                 try {
@@ -314,7 +278,7 @@
                     const data = await response.json();
                     if (!response.ok) throw new Error(data.error || 'Не удалось получить профиль');
                     this.user = data;
-                    this.status = { message: 'Данные пользователя получены через Bearer токен.', type: 'success' };
+                    this.status = { message: 'Данные пользователя получены.', type: 'success' };
                 } catch (err) {
                     this.status = { message: err.message, type: 'error' };
                 }
@@ -323,7 +287,7 @@
                 this.token = '';
                 this.user = null;
                 localStorage.removeItem('jwt_token');
-                this.status = { message: 'Токен удалён. Вы вышли из аккаунта.', type: 'success' };
+                this.status = { message: 'Вы вышли из аккаунта.', type: 'success' };
             },
             clearStatus() {
                 this.status = { message: '', type: '' };
