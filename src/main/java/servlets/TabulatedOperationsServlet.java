@@ -15,6 +15,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
+import operations.ParallelIntegralCalculator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.Part;
@@ -26,6 +27,9 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.io.PrintWriter;
 import java.util.Iterator;
 
@@ -33,6 +37,7 @@ import java.util.Iterator;
 @MultipartConfig
 public class TabulatedOperationsServlet extends HttpServlet {
     private static final int MAX_POINT_COUNT = 200;
+    private static final int MAX_THREADS = Math.max(1, Runtime.getRuntime().availableProcessors());
     private ObjectMapper objectMapper;
 
     @Override
@@ -57,6 +62,14 @@ public class TabulatedOperationsServlet extends HttpServlet {
         }
         if ("/deserialize".equals(path)) {
             handleDeserialize(req, resp);
+            return;
+        }
+        if ("/apply".equals(path)) {
+            handleApply(req, resp);
+            return;
+        }
+        if ("/integrate".equals(path)) {
+            handleIntegrate(req, resp);
             return;
         }
         sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Запрошенный ресурс не найден");
@@ -137,6 +150,7 @@ public class TabulatedOperationsServlet extends HttpServlet {
         }
         String name = textValue(body, "name");
         String type = textValue(body, "type");
+        String format = textValue(body, "format").isBlank() ? "bin" : textValue(body, "format");
         JsonNode pointsNode = body.get("points");
         if (pointsNode == null) {
             sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Передайте точки для сохранения");
@@ -145,14 +159,12 @@ public class TabulatedOperationsServlet extends HttpServlet {
         TabulatedFunctionFactory factory = chooseFactory(type);
         try {
             TabulatedFunction function = buildFunction(pointsNode, factory);
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            FunctionsIO.serialize(new BufferedOutputStream(buffer), function);
-            resp.setStatus(HttpServletResponse.SC_OK);
-            resp.setContentType("application/octet-stream");
-            String filename = (name.isBlank() ? "function" : name) + ".bin";
-            resp.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\"");
-            resp.getOutputStream().write(buffer.toByteArray());
-            resp.flushBuffer();
+            String baseName = name.isBlank() ? "function" : name;
+            switch (format.toLowerCase()) {
+                case "json" -> writeJsonFunction(resp, function, baseName);
+                case "xml" -> writeXmlFunction(resp, function, baseName);
+                default -> writeBinaryFunction(resp, function, baseName);
+            }
         } catch (IllegalArgumentException e) {
             sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         }
@@ -164,8 +176,24 @@ public class TabulatedOperationsServlet extends HttpServlet {
             sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Загрузите файл для чтения функции");
             return;
         }
+        String typeParam = req.getParameter("type");
+        String format = req.getParameter("format");
+        if (format == null || format.isBlank()) {
+            format = detectFormat(filePart.getSubmittedFileName());
+        }
         try {
-            TabulatedFunction function = FunctionsIO.deserialize(new BufferedInputStream(filePart.getInputStream()));
+            TabulatedFunction function;
+            if ("json".equalsIgnoreCase(format)) {
+                function = FunctionsIO.readTabulatedFunctionJson(
+                        new InputStreamReader(filePart.getInputStream(), StandardCharsets.UTF_8),
+                        chooseFactory(typeParam));
+            } else if ("xml".equalsIgnoreCase(format)) {
+                function = FunctionsIO.readTabulatedFunctionXml(
+                        new InputStreamReader(filePart.getInputStream(), StandardCharsets.UTF_8),
+                        chooseFactory(typeParam));
+            } else {
+                function = FunctionsIO.deserialize(new BufferedInputStream(filePart.getInputStream()));
+            }
             String storage = storageName(function);
             sendJson(resp, HttpServletResponse.SC_OK,
                     objectMapper.writeValueAsString(TabulatedFunctionResponse.from(
@@ -173,6 +201,8 @@ public class TabulatedOperationsServlet extends HttpServlet {
                             storage, function, MAX_POINT_COUNT)));
         } catch (ClassNotFoundException e) {
             sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Некорректный формат файла");
+        } catch (IllegalArgumentException e) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         }
     }
 
@@ -184,7 +214,51 @@ public class TabulatedOperationsServlet extends HttpServlet {
             return null;
         }
     }
+    private void handleApply(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        JsonNode body = parseBody(req, resp);
+        if (body == null) {
+            return;
+        }
+        JsonNode xNode = body.get("x");
+        JsonNode functionNode = body.get("function");
+        if (functionNode == null || xNode == null || !xNode.isNumber()) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Передайте функцию и значение x");
+            return;
+        }
+        TabulatedFunctionFactory factory = chooseFactory(textValue(body, "type"));
+        try {
+            TabulatedFunction function = buildFunction(functionNode, factory);
+            double value = function.apply(xNode.asDouble());
+            sendJson(resp, HttpServletResponse.SC_OK, "{\"value\":" + value + "}");
+        } catch (IllegalArgumentException e) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        }
+    }
 
+    private void handleIntegrate(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        JsonNode body = parseBody(req, resp);
+        if (body == null) {
+            return;
+        }
+        JsonNode functionNode = body.get("function");
+        if (functionNode == null) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Передайте функцию для интегрирования");
+            return;
+        }
+        int threads = body.has("threads") && body.get("threads").canConvertToInt()
+                ? body.get("threads").asInt() : 1;
+        threads = Math.max(1, Math.min(MAX_THREADS, threads));
+        TabulatedFunctionFactory factory = chooseFactory(textValue(body, "type"));
+        try {
+            TabulatedFunction function = buildFunction(functionNode, factory);
+            ParallelIntegralCalculator calculator = new ParallelIntegralCalculator();
+            double result = calculator.integrate(function, function.leftBound(), function.rightBound(), threads);
+            sendJson(resp, HttpServletResponse.SC_OK,
+                    "{\"value\":" + result + ",\"threadsUsed\":" + threads + "}");
+        } catch (IllegalArgumentException e) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        }
+    }
     private TabulatedFunction buildFunction(JsonNode node, TabulatedFunctionFactory factory) {
         JsonNode pointsNode = node.has("points") ? node.get("points") : node;
         if (pointsNode == null || !pointsNode.isArray()) {
@@ -210,6 +284,37 @@ public class TabulatedOperationsServlet extends HttpServlet {
         }
         return factory.create(xValues, yValues);
     }
+    private void writeBinaryFunction(HttpServletResponse resp, TabulatedFunction function, String baseName) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        FunctionsIO.serialize(new BufferedOutputStream(buffer), function);
+        resp.setStatus(HttpServletResponse.SC_OK);
+        resp.setContentType("application/octet-stream");
+        resp.setHeader("Content-Disposition", "attachment; filename=\"" + baseName + ".bin\"");
+        resp.getOutputStream().write(buffer.toByteArray());
+        resp.flushBuffer();
+    }
+
+    private void writeJsonFunction(HttpServletResponse resp, TabulatedFunction function, String baseName) throws IOException {
+        StringWriter writer = new StringWriter();
+        FunctionsIO.writeTabulatedFunctionJson(writer, function);
+        resp.setStatus(HttpServletResponse.SC_OK);
+        resp.setContentType("application/json");
+        resp.setCharacterEncoding("UTF-8");
+        resp.setHeader("Content-Disposition", "attachment; filename=\"" + baseName + ".json\"");
+        resp.getWriter().write(writer.toString());
+        resp.flushBuffer();
+    }
+
+    private void writeXmlFunction(HttpServletResponse resp, TabulatedFunction function, String baseName) throws IOException {
+        StringWriter writer = new StringWriter();
+        FunctionsIO.writeTabulatedFunctionXml(writer, function);
+        resp.setStatus(HttpServletResponse.SC_OK);
+        resp.setContentType("application/xml");
+        resp.setCharacterEncoding("UTF-8");
+        resp.setHeader("Content-Disposition", "attachment; filename=\"" + baseName + ".xml\"");
+        resp.getWriter().write(writer.toString());
+        resp.flushBuffer();
+    }
 
     private TabulatedFunctionFactory chooseFactory(String type) {
         if ("linked".equalsIgnoreCase(type)) {
@@ -230,6 +335,19 @@ public class TabulatedOperationsServlet extends HttpServlet {
             return "Связный список";
         }
         return "Массив";
+    }
+    private String detectFormat(String filename) {
+        if (filename == null) {
+            return "bin";
+        }
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".json")) {
+            return "json";
+        }
+        if (lower.endsWith(".xml")) {
+            return "xml";
+        }
+        return "bin";
     }
 
     private String textValue(JsonNode node, String fieldName) {

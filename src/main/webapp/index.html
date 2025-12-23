@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Табулированные функции</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg: #0f172a;
@@ -131,7 +132,6 @@
 
         <div class="card">
             <h2>Конструктор функций</h2>
-            <p class="muted">Выберите способ создания: по таблице точек или табуляцией готовой функции. Ошибки будут подсвечены модальными окнами.</p>
             <div class="actions">
                 <button @click="openPointsModal">По точкам</button>
                 <button @click="openMathModal">По другой функции</button>
@@ -162,15 +162,16 @@
                     </svg>
                 </div>
             </div>
-            <div v-else class="muted">Сначала создайте функцию — результат появится здесь.</div>
         </div>
         <div class="card">
             <h2>Главное меню</h2>
-            <p class="muted">Открывайте настройки фабрики, операции над функциями или окно дифференцирования. Каждое окно открывается модально, чтобы не появлялись дубликаты.</p>
             <div class="actions">
                 <button @click="openSettings">Настройки фабрики</button>
                 <button @click="openOperations">Операции с функциями</button>
                 <button @click="openDerivative">Дифференцирование</button>
+                <button @click="openStudy">Графическое окно</button>
+                <button @click="openIntegral">Интеграл</button>
+                <button @click="openComposite">Сложная функция</button>
             </div>
             <div class="pill">Текущий тип хранения: {{ factoryLabel }}</div>
         </div>
@@ -191,7 +192,6 @@
             </select>
             <label>Количество точек</label>
             <input v-model="pointsForm.count" placeholder="не менее 2" type="number" min="2">
-            <p class="muted">Если указать более 200 точек, для отображения в окне будут выбраны равномерно распределённые 200 точек, а остальные будут сохранены на сервере.</p>
             <div class="actions">
                 <button class="secondary" @click="buildTable">Построить таблицу</button>
                 <button @click="createFromPoints" :disabled="pointsTable.length===0">Создать</button>
@@ -228,7 +228,7 @@
             <label>Выберите исходную функцию</label>
             <select v-model="mathForm.functionKey">
                 <option disabled value="">Выберите...</option>
-                <option v-for="opt in mathOptions" :key="opt.title" :value="opt.title">{{ opt.title }}</option>
+                <option v-for="opt in mathOptions" :key="opt.key" :value="opt.key">{{ opt.title }}</option>
             </select>
             <div class="actions">
                 <div style="flex:1 1 45%">
@@ -242,7 +242,6 @@
                 <input v-model="mathForm.xFrom" placeholder="x от">
                 <input v-model="mathForm.xTo" placeholder="x до">
             </div>
-            <p class="muted">Границы должны быть числами, а левая граница меньше правой. Для отображения вернём первые 200 точек равномерно.</p>
             <div class="actions">
                 <button class="secondary" @click="closeMath">Отмена</button>
                 <button @click="createFromMath">Создать</button>
@@ -265,7 +264,6 @@
                 <h3>Настройки фабрики</h3>
                 <button class="close-btn" @click="showSettings=false">Закрыть</button>
             </div>
-            <p class="muted">Выберите реализацию, которая будет использоваться по умолчанию во всех окнах.</p>
             <label>Текущее значение</label>
             <div class="pill">{{ factoryLabel }}</div>
             <label>Новый тип хранения</label>
@@ -286,7 +284,6 @@
                 <h3>Поэлементные операции</h3>
                 <button class="close-btn" @click="closeOperations">Закрыть</button>
             </div>
-            <p class="muted">Создайте или загрузите две функции. Значения Y можно изменить прямо в таблице, X остаётся неизменным. Результат недоступен для редактирования.</p>
             <div class="pill">Текущая фабрика: {{ factoryLabel }}</div>
             <div class="panel-grid">
                 <div class="panel">
@@ -308,6 +305,10 @@
                             </tr>
                             </tbody>
                         </table>
+                        <div class="panel-actions">
+                            <button v-if="supportsInsert(operands.left)" @click="insertPoint('left')">Вставка</button>
+                            <button v-if="supportsRemove(operands.left)" class="secondary" @click="removePoint('left')">Удалить последний</button>
+                        </div>
                     </div>
                     <div class="muted" v-else>Функция ещё не создана.</div>
                 </div>
@@ -330,6 +331,10 @@
                             </tr>
                             </tbody>
                         </table>
+                        <div class="panel-actions">
+                            <button v-if="supportsInsert(operands.right)" @click="insertPoint('right')">Вставка</button>
+                            <button v-if="supportsRemove(operands.right)" class="secondary" @click="removePoint('right')">Удалить последний</button>
+                        </div>
                     </div>
                     <div class="muted" v-else>Функция ещё не создана.</div>
                 </div>
@@ -366,7 +371,6 @@
                 <h3>Дифференцирование</h3>
                 <button class="close-btn" @click="closeDerivative">Закрыть</button>
             </div>
-            <p class="muted">Задайте функцию слева, изменяйте её значения Y в таблице и нажимайте на вычисление производной. Результат недоступен для редактирования.</p>
             <div class="panel-grid">
                 <div class="panel">
                     <h4>Исходная функция</h4>
@@ -387,6 +391,10 @@
                             </tr>
                             </tbody>
                         </table>
+                        <div class="panel-actions">
+                            <button v-if="supportsInsert(derivative.source)" @click="insertPoint('diff')">Вставка</button>
+                            <button v-if="supportsRemove(derivative.source)" class="secondary" @click="removePoint('diff')">Удалить последний</button>
+                        </div>
                     </div>
                     <div class="muted" v-else>Создайте или загрузите функцию.</div>
                 </div>
@@ -414,7 +422,137 @@
         </div>
     </div>
 
-    <input ref="fileLoader" type="file" style="display:none" @change="handleFileSelected" accept=".bin,.dat,.ser">
+    <div class="modal-overlay" v-if="showStudy">
+        <div class="modal wide">
+            <div class="modal-header">
+                <h3>Графическое изучение</h3>
+                <button class="close-btn" @click="closeStudy">Закрыть</button>
+            </div>
+            <p class="muted">Создайте или загрузите функцию, отредактируйте точки и наблюдайте график. Можно вычислить значение apply(x).</p>
+            <div class="panel-grid">
+                <div class="panel">
+                    <h4>Функция</h4>
+                    <div class="panel-actions">
+                        <button @click="openPointsModal('study')">Создать по точкам</button>
+                        <button @click="openMathModal('study')">По другой функции</button>
+                        <button class="secondary" @click="triggerLoad('study', factoryType)">Загрузить</button>
+                        <button class="secondary" @click="saveFunction(study.current, 'study')">Сохранить</button>
+                    </div>
+                    <div class="panel-actions">
+                        <label>Формат</label>
+                        <select v-model="saveFormat">
+                            <option value="bin">bin</option>
+                            <option value="json">json</option>
+                            <option value="xml">xml</option>
+                        </select>
+                    </div>
+                    <div class="table-card" v-if="study.current">
+                        <table>
+                            <thead><tr><th>#</th><th>x</th><th>y</th><th></th></tr></thead>
+                            <tbody>
+                            <tr v-for="(p,idx) in study.current.points" :key="'s'+idx">
+                                <td>{{ idx+1 }}</td>
+                                <td>{{ p.x }}</td>
+                                <td><input :value="p.y" @input="updateStudyY(idx, $event.target.value)"></td>
+                                <td class="row-actions">
+                                    <button v-if="supportsRemove(study.current)" class="secondary" style="width:auto" @click="removePoint('study', idx)">Удалить</button>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                        <div class="panel-actions" style="margin-top:8px;" v-if="supportsInsert(study.current)">
+                            <button @click="insertPoint('study')">Вставка</button>
+                        </div>
+                    </div>
+                    <div class="muted" v-else>Нет выбранной функции.</div>
+                </div>
+                <div class="panel">
+                    <h4>График</h4>
+                    <canvas id="study-chart" style="max-height:320px"></canvas>
+                    <div class="panel-actions">
+                        <input v-model="study.applyX" placeholder="x для apply()" />
+                        <button @click="runApply">Вычислить</button>
+                    </div>
+                    <div class="pill" v-if="study.applyResult !== ''">Значение: {{ study.applyResult }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" v-if="showIntegral">
+        <div class="modal wide">
+            <div class="modal-header">
+                <h3>Определённый интеграл</h3>
+                <button class="close-btn" @click="closeIntegral">Закрыть</button>
+            </div>
+            <p class="muted">Интегрирование выполняется по всей области определения функции параллельно.</p>
+            <div class="panel-grid">
+                <div class="panel">
+                    <h4>Функция</h4>
+                    <div class="panel-actions">
+                        <button @click="openPointsModal('integral')">Создать по точкам</button>
+                        <button @click="openMathModal('integral')">По другой функции</button>
+                        <button class="secondary" @click="triggerLoad('integral', factoryType)">Загрузить</button>
+                    </div>
+                    <div class="table-card" v-if="integral.source">
+                        <table>
+                            <thead><tr><th>#</th><th>x</th><th>y</th></tr></thead>
+                            <tbody>
+                            <tr v-for="(p,idx) in integral.source.points" :key="'i'+idx">
+                                <td>{{ idx+1 }}</td>
+                                <td>{{ p.x }}</td>
+                                <td><input :value="p.y" @input="updateIntegralY(idx, $event.target.value)"></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                        <div class="panel-actions">
+                            <button v-if="supportsInsert(integral.source)" @click="insertPoint('integral')">Вставка</button>
+                            <button v-if="supportsRemove(integral.source)" class="secondary" @click="removePoint('integral')">Удалить последний</button>
+                        </div>
+                    </div>
+                    <div class="muted" v-else>Нет функции для интегрирования.</div>
+                </div>
+                <div class="panel">
+                    <h4>Параметры</h4>
+                    <label>Число потоков (1-{{ maxThreads }})</label>
+                    <input type="number" min="1" :max="maxThreads" v-model="integral.threads" />
+                    <div class="panel-actions">
+                        <button @click="runIntegral">Вычислить интеграл</button>
+                    </div>
+                    <div class="pill" v-if="integral.result !== null">Интеграл: {{ integral.result }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" v-if="showComposite">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Создание сложной функции</h3>
+                <button class="close-btn" @click="showComposite=false">Закрыть</button>
+            </div>
+            <label>Название</label>
+            <input v-model="compositeForm.title" placeholder="Локализованное название" />
+            <label>Приоритет отображения</label>
+            <input type="number" v-model="compositeForm.priority" />
+            <label>Первая функция</label>
+            <select v-model="compositeForm.firstKey">
+                <option disabled value="">Выберите...</option>
+                <option v-for="opt in mathOptions" :key="opt.key+'f'" :value="opt.key">{{ opt.title }}</option>
+            </select>
+            <label>Вторая функция</label>
+            <select v-model="compositeForm.secondKey">
+                <option disabled value="">Выберите...</option>
+                <option v-for="opt in mathOptions" :key="opt.key+'s'" :value="opt.key">{{ opt.title }}</option>
+            </select>
+            <div class="actions">
+                <button class="secondary" @click="showComposite=false">Отмена</button>
+                <button @click="createComposite">Создать</button>
+            </div>
+        </div>
+    </div>
+
+    <input ref="fileLoader" type="file" style="display:none" @change="handleFileSelected" accept=".bin,.dat,.ser,.json,.xml">
     <div class="modal-overlay" v-if="showEdit">
         <div class="modal">
             <div class="modal-header">
@@ -463,6 +601,9 @@
                 showSettings: false,
                 showOperations: false,
                 showDerivative: false,
+                showStudy: false,
+                showIntegral: false,
+                showComposite: false,
                 viewerMode: 'table',
                 lastFunction: null,
                 pointsForm: { name: '', type: 'array', count: '' },
@@ -473,10 +614,16 @@
                 mathOptions: [],
                 factoryType: 'array',
                 settingsType: 'array',
+                saveFormat: 'bin',
+                maxThreads: Math.max(1, navigator.hardwareConcurrency || 4),
                 creationTarget: null,
                 operands: { left: null, right: null, result: null },
                 derivative: { source: null, result: null },
+                integral: { source: null, result: null, threads: 1 },
+                study: { current: null, applyX: '', applyResult: '', chart: null },
+                compositeForm: { title: '', firstKey: '', secondKey: '', priority: 0 },
                 pendingLoadTarget: '',
+                pendingLoadType: '',
                 showEdit: false,
                 editForm: { name: '', points: [] }
             };
@@ -503,6 +650,8 @@
             }
         },
         methods: {
+            supportsInsert(func) { return func && func.insertable; },
+            supportsRemove(func) { return func && func.removable; },
             async register() {
                 this.clearStatus();
                 try {
@@ -573,8 +722,13 @@
             },
             openOperations() { this.showOperations = true; },
             openDerivative() { this.showDerivative = true; },
+            openStudy() { this.showStudy = true; nextTick(() => this.renderStudyChart()); },
+            openIntegral() { this.showIntegral = true; },
+            openComposite() { this.ensureMathOptions(); this.showComposite = true; },
             closeOperations() { this.showOperations = false; this.pendingLoadTarget = ''; },
             closeDerivative() { this.showDerivative = false; this.pendingLoadTarget = ''; },
+            closeStudy() { this.showStudy = false; },
+            closeIntegral() { this.showIntegral = false; },
             openPointsModal(target) {
                 this.creationTarget = target || null;
                 this.showPoints = true;
@@ -649,16 +803,26 @@
                 this.creationTarget = target || null;
                 this.showMath = true;
                 this.mathForm.type = this.factoryType;
-                if (this.mathOptions.length === 0) {
-                    try {
-                        const response = await fetch('/api/tabulated/options');
-                        const data = await response.json();
-                        if (!response.ok) throw new Error(data.error || 'Не удалось получить функции');
-                        this.mathOptions = data;
-                    } catch (err) {
-                        this.showError(err.message);
-                    }
+                await this.ensureMathOptions();
+            },
+            async ensureMathOptions() {
+                if (this.mathOptions.length) return;
+                try {
+                    const response = await fetch('/api/tabulated/options');
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Не удалось получить функции');
+                    this.mathOptions = data;
+                    this.sortMathOptions();
+                } catch (err) {
+                    this.showError(err.message);
                 }
+            },
+            sortMathOptions() {
+                this.mathOptions.sort((a, b) => {
+                    const priority = (b.priority || 0) - (a.priority || 0);
+                    if (priority !== 0) return priority;
+                    return (a.title || '').localeCompare(b.title || '');
+                });
             },
             closeMath() { this.showMath = false; this.creationTarget = null; },
             async createFromMath() {
@@ -691,6 +855,12 @@
                     this.operands.right = data;
                 } else if (this.creationTarget === 'diff') {
                     this.derivative.source = data;
+                } else if (this.creationTarget === 'integral') {
+                    this.integral.source = data;
+                } else if (this.creationTarget === 'study') {
+                    this.study.current = data;
+                    this.study.applyResult = '';
+                    this.renderStudyChart();
                 } else {
                     this.lastFunction = data;
                 }
@@ -699,8 +869,9 @@
                 this.creationTarget = null;
                 nextTick(() => {});
             },
-            triggerLoad(target) {
+            triggerLoad(target, type) {
                 this.pendingLoadTarget = target;
+                this.pendingLoadType = type || this.factoryType;
                 this.$refs.fileLoader.value = null;
                 this.$refs.fileLoader.click();
             },
@@ -709,6 +880,12 @@
                 if (!file) return;
                 const formData = new FormData();
                 formData.append('file', file);
+                if (this.pendingLoadType) {
+                    formData.append('type', this.pendingLoadType);
+                }
+                const name = file.name || '';
+                const ext = name.includes('.') ? name.split('.').pop() : '';
+                if (ext) formData.append('format', ext);
                 try {
                     const response = await fetch('/api/tabulated/advanced/deserialize', {
                         method: 'POST',
@@ -722,6 +899,7 @@
                     this.showError(err.message);
                 } finally {
                     this.pendingLoadTarget = '';
+                    this.pendingLoadType = '';
                     event.target.value = null;
                 }
             },
@@ -730,6 +908,8 @@
                 else if (target === 'right') this.operands.right = data;
                 else if (target === 'diff') this.derivative.source = data;
                 else this.lastFunction = data;
+                else if (target === 'integral') this.integral.source = data;
+                else if (target === 'study') { this.study.current = data; this.renderStudyChart(); }
             },
             async saveFunction(func, fallbackName) {
                 if (!func) {
@@ -741,7 +921,7 @@
                     const response = await fetch('/api/tabulated/advanced/serialize', {
                         method: 'POST',
                         headers: this.jsonHeaders(),
-                        body: JSON.stringify({ name: func.name || fallbackName || 'function', type, points: func.points })
+                        body: JSON.stringify({ name: func.name || fallbackName || 'function', type, format: this.saveFormat, points: func.points })
                     });
                     if (!response.ok) {
                         const data = await response.json();
@@ -751,7 +931,8 @@
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = url;
-                    link.download = `${func.name || fallbackName || 'function'}.bin`;
+                    const ext = this.saveFormat === 'json' ? 'json' : (this.saveFormat === 'xml' ? 'xml' : 'bin');
+                    link.download = `${func.name || fallbackName || 'function'}.${ext}`;
                     document.body.appendChild(link);
                     link.click();
                     link.remove();
@@ -773,6 +954,58 @@
                 const num = Number(value);
                 if (Number.isNaN(num) || !this.derivative.source) return;
                 this.derivative.source.points[idx].y = num;
+            },
+            updateIntegralY(idx, value) {
+                const num = Number(value);
+                if (Number.isNaN(num) || !this.integral.source) return;
+                this.integral.source.points[idx].y = num;
+            },
+            updateStudyY(idx, value) {
+                const num = Number(value);
+                if (Number.isNaN(num) || !this.study.current) return;
+                this.study.current.points[idx].y = num;
+                this.renderStudyChart();
+            },
+            insertPoint(target) {
+                const func = this.getFunctionRef(target);
+                if (!func || !func.points) return;
+                const x = Number(prompt('Введите x нового значения'));
+                const y = Number(prompt('Введите y нового значения'));
+                if (Number.isNaN(x) || Number.isNaN(y)) { this.showError('Нужно ввести числа'); return; }
+                const points = [...func.points];
+                let index = points.findIndex(p => p.x >= x);
+                if (index === -1) { index = points.length; }
+                if (points[index] && points[index].x === x) {
+                    points[index].y = y;
+                } else {
+                    points.splice(index, 0, { x, y });
+                }
+                this.setFunctionPoints(target, points);
+            },
+            removePoint(target, index) {
+                const func = this.getFunctionRef(target);
+                if (!func || !func.points || func.points.length <= 2) { this.showError('Минимум две точки'); return; }
+                const idx = index !== undefined ? index : func.points.length - 1;
+                const points = [...func.points];
+                points.splice(idx, 1);
+                this.setFunctionPoints(target, points);
+            },
+            getFunctionRef(target) {
+                if (target === 'left') return this.operands.left;
+                if (target === 'right') return this.operands.right;
+                if (target === 'diff') return this.derivative.source;
+                if (target === 'integral') return this.integral.source;
+                if (target === 'study') return this.study.current;
+                return null;
+            },
+            setFunctionPoints(target, points) {
+                if (points.length < 2) { this.showError('Минимум две точки'); return; }
+                points.sort((a,b)=>a.x-b.x);
+                if (target === 'left') this.operands.left = { ...this.operands.left, points };
+                else if (target === 'right') this.operands.right = { ...this.operands.right, points };
+                else if (target === 'diff') this.derivative.source = { ...this.derivative.source, points };
+                else if (target === 'integral') this.integral.source = { ...this.integral.source, points };
+                else if (target === 'study') { this.study.current = { ...this.study.current, points }; this.renderStudyChart(); }
             },
             async runOperation(operation) {
                 if (!this.operands.left || !this.operands.right) {
@@ -878,6 +1111,78 @@
                 } catch (err) {
                     this.showError(err.message);
                 }
+            },
+            async runApply() {
+                if (!this.study.current) { this.showError('Сначала выберите функцию.'); return; }
+                const x = Number(this.study.applyX);
+                if (Number.isNaN(x)) { this.showError('x должен быть числом'); return; }
+                try {
+                    const response = await fetch('/api/tabulated/advanced/apply', {
+                        method: 'POST',
+                        headers: this.jsonHeaders(),
+                        body: JSON.stringify({ type: this.factoryType, x, function: { points: this.study.current.points } })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Не удалось вычислить значение');
+                    this.study.applyResult = data.value;
+                } catch (err) {
+                    this.showError(err.message);
+                }
+            },
+            async runIntegral() {
+                if (!this.integral.source) { this.showError('Нет функции для интегрирования'); return; }
+                let threads = Number(this.integral.threads);
+                if (!Number.isInteger(threads) || threads < 1) { this.showError('Неверное число потоков'); return; }
+                threads = Math.min(this.maxThreads, threads);
+                this.integral.threads = threads;
+                try {
+                    const response = await fetch('/api/tabulated/advanced/integrate', {
+                        method: 'POST',
+                        headers: this.jsonHeaders(),
+                        body: JSON.stringify({ type: this.factoryType, threads, function: { points: this.integral.source.points } })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Не удалось вычислить интеграл');
+                    this.integral.result = data.value;
+                } catch (err) {
+                    this.showError(err.message);
+                }
+            },
+            async createComposite() {
+                try {
+                    if (!this.compositeForm.title.trim()) throw new Error('Укажите название функции');
+                    if (!this.compositeForm.firstKey || !this.compositeForm.secondKey) throw new Error('Выберите обе функции');
+                    const payload = { ...this.compositeForm, priority: Number(this.compositeForm.priority) || 0 };
+                    const response = await fetch('/api/tabulated/compose', {
+                        method: 'POST',
+                        headers: this.jsonHeaders(),
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Не удалось создать сложную функцию');
+                    this.mathOptions.push(data);
+                    this.sortMathOptions();
+                    this.showComposite = false;
+                    this.status = { message: 'Сложная функция добавлена в список.', type: 'success' };
+                } catch (err) {
+                    this.showError(err.message);
+                }
+            },
+            renderStudyChart() {
+                const canvas = document.getElementById('study-chart');
+                if (!canvas) return;
+                if (this.study.chart) {
+                    this.study.chart.destroy();
+                    this.study.chart = null;
+                }
+                if (!this.study.current || !this.study.current.points.length) return;
+                const labels = this.study.current.points.map(p => p.x);
+                const values = this.study.current.points.map(p => p.y);
+                this.study.chart = new Chart(canvas, {
+                    type: 'line',
+                    data: { labels, datasets: [{ label: this.study.current.name || 'Функция', data: values, borderColor: '#38bdf8', tension: 0.25 }] },
+                    options: { plugins: { legend: { display: false } } }
+                });
             }
         },
         mounted() {

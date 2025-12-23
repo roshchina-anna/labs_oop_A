@@ -1,6 +1,8 @@
 package ui;
 
+import functions.Insertable;
 import functions.Point;
+import functions.Removable;
 import functions.TabulatedFunction;
 
 import java.util.ArrayList;
@@ -12,13 +14,18 @@ public class TabulatedFunctionResponse {
     private final double leftBound;
     private final double rightBound;
     private final List<Point> points;
+    private final boolean insertable;
+    private final boolean removable;
 
-    private TabulatedFunctionResponse(String name, String storage, double leftBound, double rightBound, List<Point> points) {
+    private TabulatedFunctionResponse(String name, String storage, double leftBound, double rightBound, List<Point> points,
+                                      boolean insertable, boolean removable) {
         this.name = name;
         this.storage = storage;
         this.leftBound = leftBound;
         this.rightBound = rightBound;
         this.points = points;
+        this.insertable = insertable;
+        this.removable = removable;
     }
 
     public static TabulatedFunctionResponse from(String name, String storage, TabulatedFunction function, int maxPoints) {
@@ -34,7 +41,10 @@ public class TabulatedFunctionResponse {
                 normalized.add(last);
             }
         }
-        return new TabulatedFunctionResponse(name, storage, function.leftBound(), function.rightBound(), normalized);
+        boolean canInsert = function instanceof Insertable;
+        boolean canRemove = function instanceof Removable;
+        return new TabulatedFunctionResponse(name, storage, function.leftBound(), function.rightBound(), normalized,
+                canInsert, canRemove);
     }
 
     public String getName() {
@@ -55,5 +65,12 @@ public class TabulatedFunctionResponse {
 
     public List<Point> getPoints() {
         return points;
+    }
+    public boolean isInsertable() {
+        return insertable;
+    }
+
+    public boolean isRemovable() {
+        return removable;
     }
 }

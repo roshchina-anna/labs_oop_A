@@ -4,15 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import functions.MathFunction;
-import functions.SqrFunction;
-import functions.IdentityFunction;
-import functions.UnitFunction;
-import functions.ZeroFunction;
+import functions.CompositeFunction;
 import functions.AbstractTabulatedFunction;
 import functions.TabulatedFunction;
 import functions.factory.ArrayTabulatedFunctionFactory;
 import functions.factory.LinkedListTabulatedFunctionFactory;
 import functions.factory.TabulatedFunctionFactory;
+import functions.meta.SimpleFunctionScanner;
+import functions.meta.SimpleFunctionScanner.SimpleFunctionDefinition;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,24 +24,25 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @WebServlet("/api/tabulated/*")
 public class TabulatedFunctionServlet extends HttpServlet {
     private static final int MAX_POINT_COUNT = 200;
     private static final int MAX_POINTS_PER_REQUEST = 1000;
     private ObjectMapper objectMapper;
-    private Map<String, MathFunction> simpleFunctions;
+    private ConcurrentMap<String, RegisteredFunction> availableFunctions;
 
     @Override
     public void init() {
         this.objectMapper = new ObjectMapper();
-        this.simpleFunctions = new TreeMap<>(Comparator.naturalOrder());
-        simpleFunctions.put("Единичная функция", new UnitFunction());
-        simpleFunctions.put("Квадратичная функция", new SqrFunction());
-        simpleFunctions.put("Нулевая функция", new ZeroFunction());
-        simpleFunctions.put("Тождественная функция", new IdentityFunction());
+        this.availableFunctions = new ConcurrentHashMap<>();
+        for (SimpleFunctionDefinition definition : SimpleFunctionScanner.scan()) {
+            availableFunctions.put(definition.key(), new RegisteredFunction(
+                    definition.key(), definition.title(), definition.priority(), definition.function()));
+        }
     }
 
     @Override
@@ -64,6 +64,10 @@ public class TabulatedFunctionServlet extends HttpServlet {
         }
         if ("/from-math".equals(path)) {
             handleFromMath(req, resp);
+            return;
+        }
+        if ("/compose".equals(path)) {
+            handleCompose(req, resp);
             return;
         }
         sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Запрошенный ресурс не найден");
@@ -140,7 +144,7 @@ public class TabulatedFunctionServlet extends HttpServlet {
             sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Укажите название функции");
             return;
         }
-        MathFunction mathFunction = simpleFunctions.get(functionKey);
+        RegisteredFunction mathFunction = availableFunctions.get(functionKey);
         if (mathFunction == null) {
             sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Выберите функцию для табуляции");
             return;
@@ -170,12 +174,43 @@ public class TabulatedFunctionServlet extends HttpServlet {
             return;
         }
         try {
-            TabulatedFunction function = chooseFactory(type).create(mathFunction, xFrom, xTo, count);
+            TabulatedFunction function = chooseFactory(type).create(mathFunction.function(), xFrom, xTo, count);
             sendJson(resp, HttpServletResponse.SC_CREATED,
                     objectMapper.writeValueAsString(TabulatedFunctionResponse.from(name, storageName(type), function, MAX_POINT_COUNT)));
         } catch (RuntimeException e) {
             sendError(resp, HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         }
+    }
+    private void handleCompose(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        JsonNode body;
+        try {
+            body = objectMapper.readTree(req.getInputStream());
+        } catch (JsonProcessingException e) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Некорректный формат запроса");
+            return;
+        }
+        String title = textValue(body, "title");
+        String firstKey = textValue(body, "firstKey");
+        String secondKey = textValue(body, "secondKey");
+        int priority = body.has("priority") && body.get("priority").canConvertToInt()
+                ? body.get("priority").asInt() : 0;
+
+        if (title.isBlank()) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Укажите название сложной функции");
+            return;
+        }
+        RegisteredFunction first = availableFunctions.get(firstKey);
+        RegisteredFunction second = availableFunctions.get(secondKey);
+        if (first == null || second == null) {
+            sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Выберите функции для композиции");
+            return;
+        }
+        String key = "composite-" + UUID.randomUUID();
+        CompositeFunction composite = new CompositeFunction(first.function(), second.function());
+        RegisteredFunction registered = new RegisteredFunction(key, title, priority, composite);
+        availableFunctions.put(key, registered);
+        sendJson(resp, HttpServletResponse.SC_CREATED,
+                objectMapper.writeValueAsString(new FunctionOption(registered.key(), registered.title(), registered.priority())));
     }
 
     private TabulatedFunctionFactory chooseFactory(String type) {
@@ -194,9 +229,10 @@ public class TabulatedFunctionServlet extends HttpServlet {
 
     private List<FunctionOption> buildOptions() {
         List<FunctionOption> options = new ArrayList<>();
-        for (String name : simpleFunctions.keySet()) {
-            options.add(new FunctionOption(name));
-        }
+        availableFunctions.values().stream()
+                .sorted(Comparator.comparingInt(RegisteredFunction::priority).reversed()
+                        .thenComparing(RegisteredFunction::title))
+                .forEach(func -> options.add(new FunctionOption(func.key(), func.title(), func.priority())));
         return options;
     }
 
@@ -225,4 +261,5 @@ public class TabulatedFunctionServlet extends HttpServlet {
         }
         return value.asText("");
     }
+    private record RegisteredFunction(String key, String title, int priority, MathFunction function) { }
 }
