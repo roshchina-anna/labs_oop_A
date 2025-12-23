@@ -74,14 +74,23 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid rgba(148, 163, 184, 0.35); padding: 8px 10px; text-align: left; }
         th { color: var(--muted); font-weight: 600; }
+        .row-actions { display: flex; gap: 6px; align-items: center; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; z-index: 10; }
         .modal { background: var(--panel); border-radius: 16px; padding: 20px; width: min(700px, 94vw); border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 25px 60px rgba(0,0,0,0.45); }
+        .modal.wide { width: min(1100px, 96vw); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
         .modal-header h3 { margin: 0; }
         .close-btn { width: auto; padding: 10px 12px; background: rgba(148, 163, 184, 0.2); }
         .table-scroll { max-height: 320px; overflow: auto; margin-top: 10px; border: 1px solid rgba(148, 163, 184, 0.35); border-radius: 12px; }
         .muted { color: var(--muted); font-size: 13px; }
         .viewer { margin-top: 8px; background: rgba(17,24,39,0.6); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 12px; padding: 12px; }
+        .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 10px; }
+        .panel { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 12px; padding: 12px; }
+        .panel h4 { margin: 0 0 8px; display: flex; justify-content: space-between; align-items: center; }
+        .panel-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+        .panel-actions button { flex: 1 1 150px; margin-top: 4px; }
+        .table-card { border: 1px solid rgba(148, 163, 184, 0.35); border-radius: 12px; overflow: hidden; background: rgba(17,24,39,0.5); margin-top: 8px; }
+        .table-card table { margin: 0; }
         .tabs { display: inline-flex; gap: 8px; margin-bottom: 10px; }
         .tabs button { width: auto; padding: 8px 12px; margin-top: 0; background: rgba(148, 163, 184, 0.15); color: var(--text); border: 1px solid transparent; }
         .tabs button.active { background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); color: var(--accent); }
@@ -126,6 +135,7 @@
             <div class="actions">
                 <button @click="openPointsModal">По точкам</button>
                 <button @click="openMathModal">По другой функции</button>
+                <button class="secondary" v-if="lastFunction" @click="openEditModal">Редактировать</button>
             </div>
             <div class="viewer" v-if="lastFunction">
                 <div class="pill">{{ lastFunction.name }} • {{ lastFunction.storage }}</div>
@@ -153,6 +163,16 @@
                 </div>
             </div>
             <div v-else class="muted">Сначала создайте функцию — результат появится здесь.</div>
+        </div>
+        <div class="card">
+            <h2>Главное меню</h2>
+            <p class="muted">Открывайте настройки фабрики, операции над функциями или окно дифференцирования. Каждое окно открывается модально, чтобы не появлялись дубликаты.</p>
+            <div class="actions">
+                <button @click="openSettings">Настройки фабрики</button>
+                <button @click="openOperations">Операции с функциями</button>
+                <button @click="openDerivative">Дифференцирование</button>
+            </div>
+            <div class="pill">Текущий тип хранения: {{ factoryLabel }}</div>
         </div>
     </div>
 
@@ -239,6 +259,193 @@
             <p>{{ errorModal.message }}</p>
         </div>
     </div>
+    <div class="modal-overlay" v-if="showSettings">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Настройки фабрики</h3>
+                <button class="close-btn" @click="showSettings=false">Закрыть</button>
+            </div>
+            <p class="muted">Выберите реализацию, которая будет использоваться по умолчанию во всех окнах.</p>
+            <label>Текущее значение</label>
+            <div class="pill">{{ factoryLabel }}</div>
+            <label>Новый тип хранения</label>
+            <select v-model="settingsType">
+                <option value="array">Массив</option>
+                <option value="linked">Связный список</option>
+            </select>
+            <div class="actions">
+                <button class="secondary" @click="showSettings=false">Отмена</button>
+                <button @click="applySettings">Применить</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" v-if="showOperations">
+        <div class="modal wide">
+            <div class="modal-header">
+                <h3>Поэлементные операции</h3>
+                <button class="close-btn" @click="closeOperations">Закрыть</button>
+            </div>
+            <p class="muted">Создайте или загрузите две функции. Значения Y можно изменить прямо в таблице, X остаётся неизменным. Результат недоступен для редактирования.</p>
+            <div class="pill">Текущая фабрика: {{ factoryLabel }}</div>
+            <div class="panel-grid">
+                <div class="panel">
+                    <h4>Первый операнд</h4>
+                    <div class="panel-actions">
+                        <button @click="openPointsModal('left')">Создать по точкам</button>
+                        <button @click="openMathModal('left')">По другой функции</button>
+                        <button class="secondary" @click="triggerLoad('left')">Загрузить</button>
+                        <button class="secondary" @click="saveFunction(operands.left, 'operandA')">Сохранить</button>
+                    </div>
+                    <div class="table-card" v-if="operands.left">
+                        <table>
+                            <thead><tr><th>#</th><th>x</th><th>y</th></tr></thead>
+                            <tbody>
+                            <tr v-for="(p,idx) in operands.left.points" :key="'l'+idx">
+                                <td>{{ idx+1 }}</td>
+                                <td>{{ p.x }}</td>
+                                <td><input :value="p.y" @input="updateOperandY('left', idx, $event.target.value)"></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="muted" v-else>Функция ещё не создана.</div>
+                </div>
+                <div class="panel">
+                    <h4>Второй операнд</h4>
+                    <div class="panel-actions">
+                        <button @click="openPointsModal('right')">Создать по точкам</button>
+                        <button @click="openMathModal('right')">По другой функции</button>
+                        <button class="secondary" @click="triggerLoad('right')">Загрузить</button>
+                        <button class="secondary" @click="saveFunction(operands.right, 'operandB')">Сохранить</button>
+                    </div>
+                    <div class="table-card" v-if="operands.right">
+                        <table>
+                            <thead><tr><th>#</th><th>x</th><th>y</th></tr></thead>
+                            <tbody>
+                            <tr v-for="(p,idx) in operands.right.points" :key="'r'+idx">
+                                <td>{{ idx+1 }}</td>
+                                <td>{{ p.x }}</td>
+                                <td><input :value="p.y" @input="updateOperandY('right', idx, $event.target.value)"></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="muted" v-else>Функция ещё не создана.</div>
+                </div>
+                <div class="panel">
+                    <h4>Результат</h4>
+                    <div class="panel-actions">
+                        <button @click="runOperation('add')">Сложить</button>
+                        <button @click="runOperation('subtract')">Вычесть</button>
+                        <button @click="runOperation('multiply')">Умножить</button>
+                        <button @click="runOperation('divide')">Делить</button>
+                        <button class="secondary" @click="saveFunction(operands.result, 'result')">Сохранить результат</button>
+                    </div>
+                    <div class="table-card" v-if="operands.result">
+                        <table>
+                            <thead><tr><th>#</th><th>x</th><th>y</th></tr></thead>
+                            <tbody>
+                            <tr v-for="(p,idx) in operands.result.points" :key="'res'+idx">
+                                <td>{{ idx+1 }}</td>
+                                <td>{{ p.x }}</td>
+                                <td>{{ p.y }}</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="muted" v-else>Результат появится после выполнения операции.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" v-if="showDerivative">
+        <div class="modal wide">
+            <div class="modal-header">
+                <h3>Дифференцирование</h3>
+                <button class="close-btn" @click="closeDerivative">Закрыть</button>
+            </div>
+            <p class="muted">Задайте функцию слева, изменяйте её значения Y в таблице и нажимайте на вычисление производной. Результат недоступен для редактирования.</p>
+            <div class="panel-grid">
+                <div class="panel">
+                    <h4>Исходная функция</h4>
+                    <div class="panel-actions">
+                        <button @click="openPointsModal('diff')">Создать по точкам</button>
+                        <button @click="openMathModal('diff')">По другой функции</button>
+                        <button class="secondary" @click="triggerLoad('diff')">Загрузить</button>
+                        <button class="secondary" @click="saveFunction(derivative.source, 'source')">Сохранить</button>
+                    </div>
+                    <div class="table-card" v-if="derivative.source">
+                        <table>
+                            <thead><tr><th>#</th><th>x</th><th>y</th></tr></thead>
+                            <tbody>
+                            <tr v-for="(p,idx) in derivative.source.points" :key="'ds'+idx">
+                                <td>{{ idx+1 }}</td>
+                                <td>{{ p.x }}</td>
+                                <td><input :value="p.y" @input="updateDerivativeY(idx, $event.target.value)"></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="muted" v-else>Создайте или загрузите функцию.</div>
+                </div>
+                <div class="panel">
+                    <h4>Производная</h4>
+                    <div class="panel-actions">
+                        <button @click="runDerivative">Вычислить</button>
+                        <button class="secondary" @click="saveFunction(derivative.result, 'derivative')">Сохранить</button>
+                    </div>
+                    <div class="table-card" v-if="derivative.result">
+                        <table>
+                            <thead><tr><th>#</th><th>x</th><th>y</th></tr></thead>
+                            <tbody>
+                            <tr v-for="(p,idx) in derivative.result.points" :key="'dr'+idx">
+                                <td>{{ idx+1 }}</td>
+                                <td>{{ p.x }}</td>
+                                <td>{{ p.y }}</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="muted" v-else>Результат появится после вычисления.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input ref="fileLoader" type="file" style="display:none" @change="handleFileSelected" accept=".bin,.dat,.ser">
+    <div class="modal-overlay" v-if="showEdit">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Редактирование функции</h3>
+                <button class="close-btn" @click="closeEdit">Закрыть</button>
+            </div>
+            <label>Новое имя</label>
+            <input v-model="editForm.name" placeholder="Введите новое имя функции">
+            <div class="actions" style="justify-content: flex-end;">
+                <button class="secondary" style="width:auto" @click="addPointRow">Добавить точку</button>
+            </div>
+            <div class="table-scroll" v-if="editForm.points.length">
+                <table>
+                    <thead><tr><th>#</th><th>x</th><th>y</th><th></th></tr></thead>
+                    <tbody>
+                    <tr v-for="(row, idx) in editForm.points" :key="idx">
+                        <td>{{ idx + 1 }}</td>
+                        <td><input v-model="row.x" placeholder="x{{idx+1}}" /></td>
+                        <td><input v-model="row.y" placeholder="y{{idx+1}}" /></td>
+                        <td class="row-actions"><button class="secondary" style="width:auto" @click="removePointRow(idx)">Удалить</button></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="muted" v-else>Добавьте хотя бы две точки для сохранения.</div>
+            <div class="actions">
+                <button class="secondary" @click="closeEdit">Отмена</button>
+                <button @click="saveEdits">Сохранить изменения</button>
+            </div>
+        </div>
+    </div>
 </div>
 <script>
     const { createApp, nextTick } = Vue;
@@ -253,6 +460,9 @@
                 status: { message: '', type: '' },
                 showPoints: false,
                 showMath: false,
+                showSettings: false,
+                showOperations: false,
+                showDerivative: false,
                 viewerMode: 'table',
                 lastFunction: null,
                 pointsForm: { name: '', type: 'array', count: '' },
@@ -260,7 +470,15 @@
                 pointsTable: [],
                 tableNotice: '',
                 errorModal: { show: false, message: '' },
-                mathOptions: []
+                mathOptions: [],
+                factoryType: 'array',
+                settingsType: 'array',
+                creationTarget: null,
+                operands: { left: null, right: null, result: null },
+                derivative: { source: null, result: null },
+                pendingLoadTarget: '',
+                showEdit: false,
+                editForm: { name: '', points: [] }
             };
         },
         computed: {
@@ -279,6 +497,9 @@
                     const y = 60 - ((p.y - minY) / dy) * 60;
                     return `${x},${y}`;
                 }).join(' ');
+            },
+            factoryLabel() {
+                return this.factoryType === 'linked' ? 'Связный список' : 'Массив';
             }
         },
         methods: {
@@ -341,15 +562,31 @@
                 this.status = { message: 'Вы вышли из аккаунта.', type: 'success' };
             },
             clearStatus() { this.status = { message: '', type: '' }; },
-            openPointsModal() {
+            openSettings() {
+                this.settingsType = this.factoryType;
+                this.showSettings = true;
+            },
+            applySettings() {
+                this.factoryType = this.settingsType;
+                this.showSettings = false;
+                this.status = { message: `Фабрика переключена на «${this.factoryLabel}».`, type: 'success' };
+            },
+            openOperations() { this.showOperations = true; },
+            openDerivative() { this.showDerivative = true; },
+            closeOperations() { this.showOperations = false; this.pendingLoadTarget = ''; },
+            closeDerivative() { this.showDerivative = false; this.pendingLoadTarget = ''; },
+            openPointsModal(target) {
+                this.creationTarget = target || null;
                 this.showPoints = true;
                 this.tableNotice = '';
+                this.pointsForm.type = this.factoryType;
                 if (!this.pointsTable.length) {
                     this.pointsTable = [];
                 }
             },
             closePoints() {
                 this.showPoints = false;
+                this.creationTarget = null;
             },
             buildTable() {
                 this.tableNotice = '';
@@ -408,8 +645,10 @@
                     this.showError(err.message);
                 }
             },
-            async openMathModal() {
+            async openMathModal(target) {
+                this.creationTarget = target || null;
                 this.showMath = true;
+                this.mathForm.type = this.factoryType;
                 if (this.mathOptions.length === 0) {
                     try {
                         const response = await fetch('/api/tabulated/options');
@@ -421,7 +660,7 @@
                     }
                 }
             },
-            closeMath() { this.showMath = false; },
+            closeMath() { this.showMath = false; this.creationTarget = null; },
             async createFromMath() {
                 try {
                     if (!this.mathForm.name.trim()) throw new Error('Укажите название функции.');
@@ -446,10 +685,140 @@
                 }
             },
             handleCreated(data) {
-                this.lastFunction = data;
+                if (this.creationTarget === 'left') {
+                    this.operands.left = data;
+                } else if (this.creationTarget === 'right') {
+                    this.operands.right = data;
+                } else if (this.creationTarget === 'diff') {
+                    this.derivative.source = data;
+                } else {
+                    this.lastFunction = data;
+                }
                 this.viewerMode = 'table';
                 this.status = { message: `Функция "${data.name}" создана успешно`, type: 'success' };
+                this.creationTarget = null;
                 nextTick(() => {});
+            },
+            triggerLoad(target) {
+                this.pendingLoadTarget = target;
+                this.$refs.fileLoader.value = null;
+                this.$refs.fileLoader.click();
+            },
+            async handleFileSelected(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const formData = new FormData();
+                formData.append('file', file);
+                try {
+                    const response = await fetch('/api/tabulated/advanced/deserialize', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Не удалось загрузить функцию');
+                    this.assignFunction(this.pendingLoadTarget, data);
+                    this.status = { message: `Функция "${data.name}" загружена.`, type: 'success' };
+                } catch (err) {
+                    this.showError(err.message);
+                } finally {
+                    this.pendingLoadTarget = '';
+                    event.target.value = null;
+                }
+            },
+            assignFunction(target, data) {
+                if (target === 'left') this.operands.left = data;
+                else if (target === 'right') this.operands.right = data;
+                else if (target === 'diff') this.derivative.source = data;
+                else this.lastFunction = data;
+            },
+            async saveFunction(func, fallbackName) {
+                if (!func) {
+                    this.showError('Сначала создайте или загрузите функцию.');
+                    return;
+                }
+                const type = this.normalizeType(func.storage);
+                try {
+                    const response = await fetch('/api/tabulated/advanced/serialize', {
+                        method: 'POST',
+                        headers: this.jsonHeaders(),
+                        body: JSON.stringify({ name: func.name || fallbackName || 'function', type, points: func.points })
+                    });
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(data.error || 'Не удалось сохранить функцию');
+                    }
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${func.name || fallbackName || 'function'}.bin`;
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(url);
+                } catch (err) {
+                    this.showError(err.message);
+                }
+            },
+            normalizeType(storage) {
+                if (!storage) return this.factoryType;
+                return storage.toLowerCase().includes('связ') ? 'linked' : 'array';
+            },
+            updateOperandY(target, idx, value) {
+                const num = Number(value);
+                if (Number.isNaN(num) || !this.operands[target]) return;
+                this.operands[target].points[idx].y = num;
+            },
+            updateDerivativeY(idx, value) {
+                const num = Number(value);
+                if (Number.isNaN(num) || !this.derivative.source) return;
+                this.derivative.source.points[idx].y = num;
+            },
+            async runOperation(operation) {
+                if (!this.operands.left || !this.operands.right) {
+                    this.showError('Задайте обе функции для операции.');
+                    return;
+                }
+                try {
+                    const payload = {
+                        operation,
+                        type: this.factoryType,
+                        left: { points: this.operands.left.points },
+                        right: { points: this.operands.right.points }
+                    };
+                    const response = await fetch('/api/tabulated/advanced/operate', {
+                        method: 'POST',
+                        headers: this.jsonHeaders(),
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Не удалось выполнить операцию');
+                    this.operands.result = data;
+                } catch (err) {
+                    this.showError(err.message);
+                }
+            },
+            async runDerivative() {
+                if (!this.derivative.source) {
+                    this.showError('Сначала задайте функцию для дифференцирования.');
+                    return;
+                }
+                try {
+                    const payload = {
+                        type: this.factoryType,
+                        source: { points: this.derivative.source.points }
+                    };
+                    const response = await fetch('/api/tabulated/advanced/differentiate', {
+                        method: 'POST',
+                        headers: this.jsonHeaders(),
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Не удалось вычислить производную');
+                    this.derivative.result = data;
+                } catch (err) {
+                    this.showError(err.message);
+                }
             },
             showError(message) {
                 this.errorModal = { show: true, message };
@@ -458,6 +827,57 @@
                 const headers = { 'Content-Type': 'application/json' };
                 if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
                 return headers;
+            },
+            openEditModal() {
+                this.editForm = {
+                    name: this.lastFunction.name,
+                    points: this.lastFunction.points.map(p => ({ x: p.x, y: p.y }))
+                };
+                this.showEdit = true;
+            },
+            closeEdit() {
+                this.showEdit = false;
+            },
+            addPointRow() {
+                this.editForm.points.push({ x: '', y: '' });
+            },
+            removePointRow(index) {
+                this.editForm.points.splice(index, 1);
+            },
+            saveEdits() {
+                try {
+                    if (!this.editForm.name.trim()) {
+                        throw new Error('Название не может быть пустым.');
+                    }
+                    if (this.editForm.points.length < 2) {
+                        throw new Error('Нужно минимум две точки.');
+                    }
+                    const points = this.editForm.points.map((row, idx) => {
+                        const x = Number(row.x);
+                        const y = Number(row.y);
+                        if (Number.isNaN(x) || Number.isNaN(y)) {
+                            throw new Error(`Строка ${idx + 1}: x и y должны быть числами.`);
+                        }
+                        return { x, y };
+                    }).sort((a, b) => a.x - b.x);
+                    for (let i = 1; i < points.length; i++) {
+                        if (points[i].x <= points[i - 1].x) {
+                            throw new Error('Значения x должны строго возрастать.');
+                        }
+                    }
+                    this.lastFunction = {
+                        ...this.lastFunction,
+                        name: this.editForm.name.trim(),
+                        points,
+                        leftBound: points[0].x,
+                        rightBound: points[points.length - 1].x
+                    };
+                    this.showEdit = false;
+                    this.viewerMode = 'table';
+                    this.status = { message: 'Функция обновлена.', type: 'success' };
+                } catch (err) {
+                    this.showError(err.message);
+                }
             }
         },
         mounted() {
