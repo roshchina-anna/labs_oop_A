@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Аутентификация</title>
+    <title>Табулированные функции</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <style>
         :root {
@@ -14,8 +14,13 @@
             --muted: #94a3b8;
             --error: #f87171;
             --success: #34d399;
+            --overlay: rgba(15, 23, 42, 0.6);
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
         }
 
+        * { box-sizing: border-box; }
         body {
             margin: 0;
             font-family: "Inter", system-ui, -apple-system, sans-serif;
@@ -25,36 +30,22 @@
             color: var(--text);
             min-height: 100vh;
         }
-
         header {
-            padding: 32px 20px 10px;
+            padding: 24px 20px 10px;
             text-align: center;
         }
 
-        h1 {
-            margin: 0;
-            font-size: 28px;
-            letter-spacing: 0.5px;
-        }
-
-        h1 span {
-            color: var(--accent);
-        }
-
-        p.subtitle {
-            color: var(--muted);
-            margin-top: 6px;
-        }
-
+        h1 { margin: 0; font-size: 28px; letter-spacing: 0.5px; }
+        h1 span { color: var(--accent); }
+        p.subtitle { color: var(--muted); margin-top: 6px; }
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 18px;
             padding: 10px 20px 40px;
-            max-width: 1100px;
+            max-width: 1200px;
             margin: 0 auto;
         }
-
         .card {
             background: linear-gradient(160deg, rgba(56, 189, 248, 0.12), rgba(17, 24, 39, 0.95));
             border: 1px solid rgba(56, 189, 248, 0.25);
@@ -64,139 +55,47 @@
             backdrop-filter: blur(6px);
         }
 
-        .card h2 {
-            margin: 0 0 12px;
-            font-size: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
 
-        .card h2::before {
-            content: "";
-            width: 8px;
-            height: 24px;
-            background: linear-gradient(180deg, var(--accent), rgba(56, 189, 248, 0.4));
-            border-radius: 999px;
-        }
-
-        label {
-            display: block;
-            font-size: 13px;
-            color: var(--muted);
-            margin: 10px 0 6px;
-        }
-
-        input {
-            width: 100%;
-            padding: 12px 14px;
-            border-radius: 12px;
-            border: 1px solid rgba(148, 163, 184, 0.5);
-            background: rgba(15, 23, 42, 0.6);
-            color: var(--text);
-            font-size: 15px;
-            outline: none;
-        }
-
-        input:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
-        }
-
-        button {
-            margin-top: 14px;
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 12px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            background: linear-gradient(135deg, #38bdf8, #2563eb);
-            color: #0b1223;
-            transition: transform 0.1s ease, box-shadow 0.1s ease;
-        }
-
-        button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
-        }
-
-        button.secondary {
-            background: rgba(148, 163, 184, 0.2);
-            color: var(--text);
-            border: 1px solid rgba(148, 163, 184, 0.5);
-        }
-
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            background: rgba(56, 189, 248, 0.15);
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            color: var(--accent);
-            font-weight: 600;
-            font-size: 13px;
-        }
-
-        .status {
-            margin-top: 12px;
-            padding: 12px 14px;
-            border-radius: 12px;
-            background: rgba(17, 24, 39, 0.75);
-            border: 1px solid rgba(148, 163, 184, 0.35);
-            color: var(--text);
-            line-height: 1.5;
-            white-space: pre-line;
-        }
-
-        .status.success {
-            border-color: rgba(52, 211, 153, 0.6);
-            color: var(--success);
-        }
-
-        .status.error {
-            border-color: rgba(248, 113, 113, 0.6);
-            color: var(--error);
-        }
-
-        .token-box {
-            margin-top: 10px;
-            padding: 10px 12px;
-            background: rgba(15, 23, 42, 0.7);
-            border: 1px dashed rgba(56, 189, 248, 0.5);
-            border-radius: 10px;
-            color: var(--text);
-            word-break: break-all;
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-            font-size: 12px;
-        }
-
-        ul {
-            padding-left: 18px;
-            margin: 6px 0;
-            color: var(--muted);
-        }
-
-        .actions {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .actions button {
-            flex: 1 1 140px;
-        }
+        .card h2 { margin: 0 0 12px; font-size: 20px; display: flex; align-items: center; gap: 8px; }
+        .card h2::before { content: ""; width: 8px; height: 24px; background: linear-gradient(180deg, var(--accent), rgba(56, 189, 248, 0.4)); border-radius: 999px; }
+        label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
+        input, select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.5); background: rgba(15, 23, 42, 0.6); color: var(--text); font-size: 15px; outline: none; }
+        input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2); }
+        button { margin-top: 14px; width: 100%; padding: 12px; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; background: linear-gradient(135deg, #38bdf8, #2563eb); color: #0b1223; transition: transform 0.1s ease, box-shadow 0.1s ease; }
+        button:hover { transform: translateY(-1px); box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3); }
+        button.secondary { background: rgba(148, 163, 184, 0.2); color: var(--text); border: 1px solid rgba(148, 163, 184, 0.5); }
+        .status { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: rgba(17, 24, 39, 0.75); border: 1px solid rgba(148, 163, 184, 0.35); color: var(--text); line-height: 1.5; white-space: pre-line; }
+        .status.success { border-color: rgba(52, 211, 153, 0.6); color: var(--success); }
+        .status.error { border-color: rgba(248, 113, 113, 0.6); color: var(--error); }
+        .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+        .actions button { flex: 1 1 160px; margin-top: 8px; }
+        .pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); color: var(--accent); font-weight: 600; font-size: 13px; }
+        .token-box { margin-top: 10px; padding: 10px 12px; background: rgba(15, 23, 42, 0.7); border: 1px dashed rgba(56, 189, 248, 0.5); border-radius: 10px; color: var(--text); word-break: break-all; font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid rgba(148, 163, 184, 0.35); padding: 8px 10px; text-align: left; }
+        th { color: var(--muted); font-weight: 600; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; z-index: 10; }
+        .modal { background: var(--panel); border-radius: 16px; padding: 20px; width: min(700px, 94vw); border: 1px solid rgba(56, 189, 248, 0.35); box-shadow: 0 25px 60px rgba(0,0,0,0.45); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .modal-header h3 { margin: 0; }
+        .close-btn { width: auto; padding: 10px 12px; background: rgba(148, 163, 184, 0.2); }
+        .table-scroll { max-height: 320px; overflow: auto; margin-top: 10px; border: 1px solid rgba(148, 163, 184, 0.35); border-radius: 12px; }
+        .muted { color: var(--muted); font-size: 13px; }
+        .viewer { margin-top: 8px; background: rgba(17,24,39,0.6); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 12px; padding: 12px; }
+        .tabs { display: inline-flex; gap: 8px; margin-bottom: 10px; }
+        .tabs button { width: auto; padding: 8px 12px; margin-top: 0; background: rgba(148, 163, 184, 0.15); color: var(--text); border: 1px solid transparent; }
+        .tabs button.active { background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); color: var(--accent); }
+        .chart { width: 100%; height: 260px; background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(148, 163, 184, 0.25); border-radius: 12px; display: flex; align-items: center; justify-content: center; }
+        .chart svg { width: 100%; height: 100%; }
+        .error-modal { color: var(--error); font-weight: 700; }
     </style>
 </head>
 <body>
 <div id="app">
     <header>
-        <p class="subtitle">Регистрация/авторизация</p>
+        <h1>Табулированные функции <span>online</span></h1>
+        <p class="subtitle">Создание функций</p>
     </header>
-
     <div class="grid">
         <div class="card">
             <h2>Регистрация</h2>
@@ -214,11 +113,135 @@
             <label for="login-password">Пароль</label>
             <input id="login-password" type="password" v-model="loginForm.password" placeholder="Введите пароль">
             <button @click="login">Войти</button>
+            <div class="actions" v-if="token">
+                <button class="secondary" @click="fetchProfile">Обновить профиль</button>
+                <button class="secondary" @click="logout">Выйти</button>
+            </div>
+            <div class="status" :class="status.type" v-if="status.message">{{ status.message }}</div>
+        </div>
+
+        <div class="card">
+            <h2>Конструктор функций</h2>
+            <p class="muted">Выберите способ создания: по таблице точек или табуляцией готовой функции. Ошибки будут подсвечены модальными окнами.</p>
+            <div class="actions">
+                <button @click="openPointsModal">По точкам</button>
+                <button @click="openMathModal">По другой функции</button>
+            </div>
+            <div class="viewer" v-if="lastFunction">
+                <div class="pill">{{ lastFunction.name }} • {{ lastFunction.storage }}</div>
+                <p class="muted">Интервал: {{ lastFunction.leftBound }} – {{ lastFunction.rightBound }} ({{ lastFunction.points.length }} т.)</p>
+                <div class="tabs">
+                    <button :class="{active: viewerMode === 'table'}" @click="viewerMode='table'">Точки</button>
+                    <button :class="{active: viewerMode === 'graph'}" @click="viewerMode='graph'">График</button>
+                </div>
+                <div v-if="viewerMode==='table'" class="table-scroll">
+                    <table>
+                        <thead><tr><th>#</th><th>x</th><th>y</th></tr></thead>
+                        <tbody>
+                        <tr v-for="(p,idx) in lastFunction.points" :key="idx">
+                            <td>{{ idx+1 }}</td>
+                            <td>{{ p.x.toFixed(4) }}</td>
+                            <td>{{ p.y.toFixed(4) }}</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div v-else class="chart">
+                    <svg viewBox="0 0 100 60" preserveAspectRatio="none">
+                        <polyline :points="svgPoints" fill="none" stroke="var(--accent)" stroke-width="1.5" />
+                    </svg>
+                </div>
+            </div>
+            <div v-else class="muted">Сначала создайте функцию — результат появится здесь.</div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" v-if="showPoints">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Создание функции по точкам</h3>
+                <button class="close-btn" @click="closePoints">Закрыть</button>
+            </div>
+            <label>Название функции</label>
+            <input v-model="pointsForm.name" placeholder="Например, Таблица 1">
+            <label>Тип хранения</label>
+            <select v-model="pointsForm.type">
+                <option value="array">Массив</option>
+                <option value="linked">Связный список</option>
+            </select>
+            <label>Количество точек</label>
+            <input v-model="pointsForm.count" placeholder="не менее 2" type="number" min="2">
+            <p class="muted">Если указать более 200 точек, для отображения в окне будут выбраны равномерно распределённые 200 точек, а остальные будут сохранены на сервере.</p>
+            <div class="actions">
+                <button class="secondary" @click="buildTable">Построить таблицу</button>
+                <button @click="createFromPoints" :disabled="pointsTable.length===0">Создать</button>
+            </div>
+            <div class="table-scroll" v-if="pointsTable.length">
+                <table>
+                    <thead><tr><th>#</th><th>x</th><th>y</th></tr></thead>
+                    <tbody>
+                    <tr v-for="(row,idx) in pointsTable" :key="idx">
+                        <td>{{ idx+1 }}</td>
+                        <td><input v-model="row.x" placeholder="x{{idx+1}}" /></td>
+                        <td><input v-model="row.y" placeholder="y{{idx+1}}" /></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="muted" v-if="tableNotice">{{ tableNotice }}</div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" v-if="showMath">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Табуляция готовой функции</h3>
+                <button class="close-btn" @click="closeMath">Закрыть</button>
+            </div>
+            <label>Название функции</label>
+            <input v-model="mathForm.name" placeholder="Например, sin(x) на [0;π]">
+            <label>Тип хранения</label>
+            <select v-model="mathForm.type">
+                <option value="array">Массив</option>
+                <option value="linked">Связный список</option>
+            </select>
+            <label>Выберите исходную функцию</label>
+            <select v-model="mathForm.functionKey">
+                <option disabled value="">Выберите...</option>
+                <option v-for="opt in mathOptions" :key="opt.title" :value="opt.title">{{ opt.title }}</option>
+            </select>
+            <div class="actions">
+                <div style="flex:1 1 45%">
+                    <label>Количество точек</label>
+                    <input v-model="mathForm.count" type="number" min="2" placeholder="не менее 2">
+                </div>
+                <div style="flex:1 1 45%"></div>
+            </div>
+            <label>Интервал разбиения</label>
+            <div class="actions">
+                <input v-model="mathForm.xFrom" placeholder="x от">
+                <input v-model="mathForm.xTo" placeholder="x до">
+            </div>
+            <p class="muted">Границы должны быть числами, а левая граница меньше правой. Для отображения вернём первые 200 точек равномерно.</p>
+            <div class="actions">
+                <button class="secondary" @click="closeMath">Отмена</button>
+                <button @click="createFromMath">Создать</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" v-if="errorModal.show">
+        <div class="modal error-modal">
+            <div class="modal-header">
+                <h3>Ошибка</h3>
+                <button class="close-btn" @click="errorModal.show=false">Закрыть</button>
+            </div>
+            <p>{{ errorModal.message }}</p>
         </div>
     </div>
 </div>
 <script>
-    const { createApp } = Vue;
+    const { createApp, nextTick } = Vue;
 
     createApp({
         data() {
@@ -227,8 +250,36 @@
                 loginForm: { username: '', password: '' },
                 token: localStorage.getItem('jwt_token') || '',
                 user: null,
-                status: { message: '', type: '' }
+                status: { message: '', type: '' },
+                showPoints: false,
+                showMath: false,
+                viewerMode: 'table',
+                lastFunction: null,
+                pointsForm: { name: '', type: 'array', count: '' },
+                mathForm: { name: '', type: 'array', functionKey: '', count: '', xFrom: '', xTo: '' },
+                pointsTable: [],
+                tableNotice: '',
+                errorModal: { show: false, message: '' },
+                mathOptions: []
             };
+        },
+        computed: {
+            svgPoints() {
+                if (!this.lastFunction || !this.lastFunction.points.length) return '';
+                const xs = this.lastFunction.points.map(p => p.x);
+                const ys = this.lastFunction.points.map(p => p.y);
+                const minX = Math.min(...xs);
+                const maxX = Math.max(...xs);
+                const minY = Math.min(...ys);
+                const maxY = Math.max(...ys);
+                const dx = maxX - minX || 1;
+                const dy = maxY - minY || 1;
+                return this.lastFunction.points.map(p => {
+                    const x = ((p.x - minX) / dx) * 100;
+                    const y = 60 - ((p.y - minY) / dy) * 60;
+                    return `${x},${y}`;
+                }).join(' ');
+            }
         },
         methods: {
             async register() {
@@ -289,8 +340,124 @@
                 localStorage.removeItem('jwt_token');
                 this.status = { message: 'Вы вышли из аккаунта.', type: 'success' };
             },
-            clearStatus() {
-                this.status = { message: '', type: '' };
+            clearStatus() { this.status = { message: '', type: '' }; },
+            openPointsModal() {
+                this.showPoints = true;
+                this.tableNotice = '';
+                if (!this.pointsTable.length) {
+                    this.pointsTable = [];
+                }
+            },
+            closePoints() {
+                this.showPoints = false;
+            },
+            buildTable() {
+                this.tableNotice = '';
+                const rawCount = this.pointsForm.count;
+                const count = Number(rawCount);
+                if (Number.isNaN(count)) {
+                    this.showError('Размер таблицы должен быть числом.');
+                    return;
+                }
+                if (!Number.isInteger(count) || count < 2) {
+                    this.showError('Нужно ввести целое число не меньше 2.');
+                    return;
+                }
+                let finalCount = count;
+                if (count > 1000) {
+                    this.showError('Количество точек ограничено 1000 для защиты сервера.');
+                    return;
+                }
+                if (count > 200) {
+                    finalCount = 200;
+                    this.tableNotice = 'Показаны первые 200 строк для редактирования. Остальные можно добавить позже из файла или поочерёдно.';
+                }
+                const preserved = this.pointsTable.slice(0, finalCount);
+                this.pointsTable = Array.from({ length: finalCount }, (_, idx) => preserved[idx] || { x: '', y: '' });
+                if (preserved.length && preserved.length !== finalCount) {
+                    this.tableNotice = 'Таблица пересоздана: значения сохранены, пока помещались в новые пределы.';
+                }
+            },
+            async createFromPoints() {
+                try {
+                    if (!this.pointsForm.name.trim()) throw new Error('Укажите название функции.');
+                    if (!this.pointsTable.length) throw new Error('Сначала постройте таблицу.');
+                    const points = this.pointsTable.map((row, idx) => {
+                        const x = Number(row.x);
+                        const y = Number(row.y);
+                        if (Number.isNaN(x) || Number.isNaN(y)) {
+                            throw new Error(`Строка ${idx + 1}: значения должны быть числами.`);
+                        }
+                        return { x, y };
+                    });
+                    for (let i = 1; i < points.length; i++) {
+                        if (points[i].x <= points[i - 1].x) {
+                            throw new Error('x должны возрастать строго по таблице.');
+                        }
+                    }
+                    const response = await fetch('/api/tabulated/from-points', {
+                        method: 'POST',
+                        headers: this.jsonHeaders(),
+                        body: JSON.stringify({ name: this.pointsForm.name, type: this.pointsForm.type, points })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Не удалось создать функцию');
+                    this.handleCreated(data);
+                    this.closePoints();
+                } catch (err) {
+                    this.showError(err.message);
+                }
+            },
+            async openMathModal() {
+                this.showMath = true;
+                if (this.mathOptions.length === 0) {
+                    try {
+                        const response = await fetch('/api/tabulated/options');
+                        const data = await response.json();
+                        if (!response.ok) throw new Error(data.error || 'Не удалось получить функции');
+                        this.mathOptions = data;
+                    } catch (err) {
+                        this.showError(err.message);
+                    }
+                }
+            },
+            closeMath() { this.showMath = false; },
+            async createFromMath() {
+                try {
+                    if (!this.mathForm.name.trim()) throw new Error('Укажите название функции.');
+                    if (!this.mathForm.functionKey) throw new Error('Выберите исходную функцию.');
+                    const count = Number(this.mathForm.count);
+                    if (!Number.isInteger(count) || count < 2) throw new Error('Количество точек должно быть целым и не меньше 2.');
+                    const xFrom = Number(this.mathForm.xFrom);
+                    const xTo = Number(this.mathForm.xTo);
+                    if (Number.isNaN(xFrom) || Number.isNaN(xTo)) throw new Error('Границы интервала должны быть числами.');
+                    const payload = { name: this.mathForm.name, type: this.mathForm.type, functionKey: this.mathForm.functionKey, count, xFrom, xTo };
+                    const response = await fetch('/api/tabulated/from-math', {
+                        method: 'POST',
+                        headers: this.jsonHeaders(),
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Не удалось создать функцию');
+                    this.handleCreated(data);
+                    this.closeMath();
+                } catch (err) {
+                    this.showError(err.message);
+                }
+            },
+            handleCreated(data) {
+                this.lastFunction = data;
+                this.viewerMode = 'table';
+                this.status = { message: `Функция "${data.name}" создана успешно`, type: 'success' };
+                nextTick(() => {});
+            },
+            showError(message) {
+                this.errorModal = { show: true, message };
+            },
+            jsonHeaders() {
+                const headers = { 'Content-Type': 'application/json' };
+                if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+                return headers;
             }
         },
         mounted() {
